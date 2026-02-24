@@ -9,8 +9,9 @@ A dedicated administration SPA for the **btp-gateway** backend. Manages tenants,
 1. [Stack](#stack)
 2. [Project Structure](#project-structure)
 3. [Getting Started](#getting-started)
-4. [Running with the Backend](#running-with-the-backend)
-5. [User Guide](#user-guide)
+4. [First-Time Setup](#first-time-setup)
+5. [Running with the Backend](#running-with-the-backend)
+6. [User Guide](#user-guide)
    - [Login](#login)
    - [Dashboard](#dashboard)
    - [Tenants](#tenants)
@@ -116,6 +117,92 @@ VITE_API_BASE_URL=http://localhost:3000
 ```
 
 Change the URL to match wherever your `btp-gateway` instance is running.
+
+---
+
+## First-Time Setup
+
+This section covers the complete process for getting the platform running from scratch. You only need to do this once per deployment.
+
+### Step 1 — Configure the backend
+
+```bash
+cd btp-inspector/btp-gateway
+cp .env.example .env
+```
+
+Edit `.env` and fill in every required value. Pay special attention to the bootstrap section:
+
+```env
+# Generate two random 64-char hex strings (one for JWT, one for encryption):
+#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+JWT_SECRET=<64-char-hex>
+ENCRYPTION_KEY=<64-char-hex>
+
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=btp_gateway
+DB_PASSWORD=<your-db-password>
+DB_DATABASE=btp_gateway
+
+# Initial admin credentials — change these before any real deployment
+BOOTSTRAP_TENANT_NAME=Platform Admin
+BOOTSTRAP_TENANT_SLUG=platform
+BOOTSTRAP_EMAIL=admin@example.com
+BOOTSTRAP_PASSWORD=<strong-password>
+```
+
+### Step 2 — Start PostgreSQL
+
+```bash
+cd btp-inspector/btp-gateway
+docker-compose up -d postgres
+```
+
+### Step 3 — Seed the database
+
+```bash
+cd btp-inspector/btp-gateway
+npm run bootstrap
+```
+
+This creates the schema, the initial tenant, and the admin user. Output:
+
+```
+✓ Tenant created: Platform Admin (slug: platform, id: <uuid>)
+✓ Admin user created: admin@example.com
+
+──────────────────────────────────────────────────────────────────
+Bootstrap complete. Log in to the admin UI with:
+  Tenant slug  →  platform
+  Email        →  admin@example.com
+  Password     →  (value of BOOTSTRAP_PASSWORD in .env)
+──────────────────────────────────────────────────────────────────
+```
+
+### Step 4 — Start both services
+
+**Terminal 1 — Backend**
+```bash
+cd btp-inspector/btp-gateway
+npm run start:dev        # http://localhost:3000
+```
+
+**Terminal 2 — Admin UI**
+```bash
+cd btp-inspector/btp-admin
+npm run dev              # http://localhost:5173
+```
+
+### Step 5 — Log in and complete the setup
+
+1. Open **http://localhost:5173**
+2. Log in with the bootstrap credentials printed in Step 3
+3. Follow the [Onboarding a New Customer](#onboarding-a-new-customer--step-by-step) guide to create your real tenants, BTP accounts, and credential sets
+4. When your real setup is done, go to **Tenant → Users** and deactivate or delete the bootstrap admin user
+
+> The `platform` tenant and its admin user are purely for initial configuration. Once you have created your real tenant structure, this bootstrap tenant is no longer needed.
 
 ---
 
