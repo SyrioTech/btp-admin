@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(npx shadcn-vue@latest add:*)",
+      "Bash(/Users/rodrigo/Delling/Workbench/Syrio/Projects/btp-inspector/btp-admin/.env.local:*)",
+      "Bash(npm test:*)"
+    ]
+  }
+}
