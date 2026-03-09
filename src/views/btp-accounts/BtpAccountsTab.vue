@@ -47,7 +47,7 @@ const [region, regionAttrs] = defineField('region')
 
 const onCreateSubmit = handleSubmit(async (values) => {
   try {
-    await createAccount.mutateAsync({ ...values, tenantId: props.tenantId })
+    await createAccount.mutateAsync(values)
     toast.success(`Account "${values.displayName}" added`)
     createOpen.value = false
     resetForm()

@@ -113,10 +113,10 @@ npm run dev
 Create `.env.local` in the project root (already created, but verify):
 
 ```env
-VITE_API_BASE_URL=http://localhost:3000
+VITE_API_BASE_URL=http://localhost:3001
 ```
 
-Change the URL to match wherever your `btp-gateway` instance is running.
+Change the URL to match wherever your `btp-gateway` instance is running (default port is `3000`; use `3001` or any other value if that port is already in use on your machine).
 
 ---
 
@@ -186,7 +186,7 @@ Bootstrap complete. Log in to the admin UI with:
 **Terminal 1 — Backend**
 ```bash
 cd btp-inspector/btp-gateway
-npm run start:dev        # http://localhost:3000
+npm run start:dev        # http://localhost:${PORT} — see PORT in .env (default 3000)
 ```
 
 **Terminal 2 — Admin UI**
@@ -221,7 +221,7 @@ btp-inspector/
 **Terminal 1 — Backend**
 ```bash
 cd btp-inspector/btp-gateway
-npm run start:dev        # NestJS on http://localhost:3000
+npm run start:dev        # NestJS on http://localhost:${PORT} — see PORT in .env
 ```
 
 **Terminal 2 — Admin UI**
@@ -230,7 +230,7 @@ cd btp-inspector/btp-admin
 npm run dev              # Vite on http://localhost:5173
 ```
 
-The `VITE_API_BASE_URL=http://localhost:3000` in `.env.local` points the UI at the local backend.
+The `VITE_API_BASE_URL` in `.env.local` must match the gateway's port (e.g. `http://localhost:3001`).
 
 ### Production
 
@@ -348,7 +348,7 @@ After adding a credential set, verify it actually works before moving to product
 1. In the expanded credential row, click the **flask icon (⌥)**
 2. The result badge updates inline:
    - **Pass** (green) — the gateway can successfully obtain a token and reach the service
-   - **Fail** (red) — check the token URL, client ID, and secret; verify the service is reachable from the gateway host
+   - **Fail** (red) — the error message from the gateway is displayed inline; check the token URL, client ID, and secret, then verify the service is reachable from the gateway host
 
 #### Step 5 — Create an admin user for the tenant
 
@@ -389,7 +389,7 @@ Deactivating a user (`isActive: false`) prevents them from logging in while pres
 
 | Variable           | Required | Description                                 |
 | ------------------ | -------- | ------------------------------------------- |
-| `VITE_API_BASE_URL` | Yes      | Base URL of the btp-gateway REST API, e.g. `http://localhost:3000` |
+| `VITE_API_BASE_URL` | Yes      | Base URL of the btp-gateway REST API, e.g. `http://localhost:3001` |
 
 Vite exposes only variables prefixed with `VITE_` to the browser bundle. Never put secrets in this file — it is baked into the client JavaScript at build time.
 

@@ -183,13 +183,17 @@ const onCreateSubmit = handleSubmit(async (vals) => {
             {{ new Date(cred.createdAt).toLocaleDateString() }}
           </TableCell>
           <TableCell>
-            <Badge
-              v-if="testResults[cred.id]"
-              :variant="testResults[cred.id]?.success ? 'default' : 'destructive'"
-              class="text-xs"
-            >
-              {{ testResults[cred.id]?.success ? 'Pass' : 'Fail' }}
-            </Badge>
+            <template v-if="testResults[cred.id]">
+              <Badge
+                :variant="testResults[cred.id]?.success ? 'default' : 'destructive'"
+                class="text-xs"
+              >
+                {{ testResults[cred.id]?.success ? 'Pass' : 'Fail' }}
+              </Badge>
+              <p v-if="!testResults[cred.id]?.success && testResults[cred.id]?.message" class="mt-1 text-xs text-destructive">
+                {{ testResults[cred.id]?.message }}
+              </p>
+            </template>
             <span v-else class="text-xs text-muted-foreground">—</span>
           </TableCell>
           <TableCell class="flex gap-1">

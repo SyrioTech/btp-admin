@@ -59,7 +59,6 @@ export interface UpdateTenantDto {
 }
 
 export interface CreateBtpAccountDto {
-  tenantId: string
   globalAccountId: string
   displayName: string
   region: string
