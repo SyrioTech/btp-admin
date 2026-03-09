@@ -34,8 +34,8 @@ const onSubmit = handleSubmit(async (values) => {
   loading.value = true
   serverError.value = ''
   try {
-    const { access_token, user } = await authApi.login(values)
-    auth.setAuth(access_token, user)
+    const { accessToken, user } = await authApi.login(values)
+    auth.setAuth(accessToken, user)
     await router.push('/')
   } catch (err: any) {
     if (err.response?.status === 401) {

@@ -2,7 +2,7 @@ import api from '@/lib/axios'
 import type { AuthUser, LoginDto } from './types'
 
 export interface LoginResponse {
-  access_token: string
+  accessToken: string
   user: AuthUser
 }
 
