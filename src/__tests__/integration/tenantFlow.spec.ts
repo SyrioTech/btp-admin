@@ -96,7 +96,7 @@ describe('Tenant onboarding integration flow', () => {
 
   it('step 1 — successful login stores token and user', async () => {
     vi.mocked(authApi.login).mockResolvedValue({
-      access_token: 'jwt-abc',
+      accessToken: 'jwt-abc',
       user: { id: 'u1', email: 'admin@gamma.com', role: 'admin', tenantId: 't1' },
     })
 

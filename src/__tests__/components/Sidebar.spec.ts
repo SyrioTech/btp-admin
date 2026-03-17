@@ -2,9 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
 import { createRouter, createMemoryHistory } from 'vue-router'
+import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
 import Sidebar from '@/components/layout/Sidebar.vue'
 import { useAuthStore } from '@/stores/auth'
 import type { AuthUser } from '@/api/types'
+
+const queryClient = new QueryClient()
 
 const mockUser: AuthUser = {
   id: 'u1',
@@ -33,14 +36,14 @@ describe('Sidebar', () => {
 
   it('renders the application title', () => {
     const wrapper = mount(Sidebar, {
-      global: { plugins: [makeRouter()] },
+      global: { plugins: [makeRouter(), [VueQueryPlugin, { queryClient }]] },
     })
     expect(wrapper.text()).toContain('BTP Admin')
   })
 
   it('renders Dashboard and Tenants navigation links', () => {
     const wrapper = mount(Sidebar, {
-      global: { plugins: [makeRouter()] },
+      global: { plugins: [makeRouter(), [VueQueryPlugin, { queryClient }]] },
     })
     const links = wrapper.findAll('a')
     const hrefs = links.map((l) => l.attributes('href'))
@@ -53,7 +56,7 @@ describe('Sidebar', () => {
     store.setAuth('tok', mockUser)
 
     const wrapper = mount(Sidebar, {
-      global: { plugins: [makeRouter()] },
+      global: { plugins: [makeRouter(), [VueQueryPlugin, { queryClient }]] },
     })
 
     expect(wrapper.text()).toContain('admin@test.com')
@@ -62,7 +65,7 @@ describe('Sidebar', () => {
 
   it('does not show user email section when not authenticated', () => {
     const wrapper = mount(Sidebar, {
-      global: { plugins: [makeRouter()] },
+      global: { plugins: [makeRouter(), [VueQueryPlugin, { queryClient }]] },
     })
     expect(wrapper.text()).not.toContain('@')
   })
@@ -75,7 +78,7 @@ describe('Sidebar', () => {
     const pushSpy = vi.spyOn(router, 'push')
 
     const wrapper = mount(Sidebar, {
-      global: { plugins: [router] },
+      global: { plugins: [router, [VueQueryPlugin, { queryClient }]] },
     })
 
     const signOutButton = wrapper.findAll('button').find((b) =>
@@ -95,7 +98,7 @@ describe('Sidebar', () => {
     await router.isReady()
 
     const wrapper = mount(Sidebar, {
-      global: { plugins: [router] },
+      global: { plugins: [router, [VueQueryPlugin, { queryClient }]] },
     })
 
     const tenantsLink = wrapper.findAll('a').find((a) => a.attributes('href') === '/tenants')

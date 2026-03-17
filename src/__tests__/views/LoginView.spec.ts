@@ -97,7 +97,7 @@ describe('LoginView', () => {
 
   it('calls authApi.login with correct payload on valid submit', async () => {
     vi.mocked(authApi.login).mockResolvedValue({
-      access_token: 'test-token',
+      accessToken: 'test-token',
       user: { id: 'u1', email: 'admin@acme.com', role: 'admin', tenantId: 't1' },
     })
 
@@ -119,7 +119,7 @@ describe('LoginView', () => {
 
   it('stores auth token in Pinia after successful login', async () => {
     vi.mocked(authApi.login).mockResolvedValue({
-      access_token: 'jwt-token',
+      accessToken: 'jwt-token',
       user: { id: 'u1', email: 'admin@acme.com', role: 'admin', tenantId: 't1' },
     })
 

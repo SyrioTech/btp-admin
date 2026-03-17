@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { setActivePinia, createPinia } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import type { AuthUser } from '@/api/types'
@@ -63,10 +63,10 @@ describe('api/auth shapes', () => {
   it('LoginResponse type has access_token and user fields', () => {
     // Compile-time check via assignment — if types are wrong this file won't build
     const response: import('@/api/auth').LoginResponse = {
-      access_token: 'tok',
+      accessToken: 'tok',
       user: mockUser,
     }
-    expect(response.access_token).toBe('tok')
+    expect(response.accessToken).toBe('tok')
     expect(response.user.email).toBe('admin@test.com')
   })
 })

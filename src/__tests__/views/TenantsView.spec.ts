@@ -194,7 +194,7 @@ describe('TenantsView', () => {
 
   it('calls tenantsApi.update on Deactivate click', async () => {
     vi.mocked(tenantsApi.list).mockResolvedValue(fakeTenants)
-    vi.mocked(tenantsApi.update).mockResolvedValue({ ...fakeTenants[0], isActive: false })
+    vi.mocked(tenantsApi.update).mockResolvedValue({ ...fakeTenants[0], isActive: false } as unknown as Tenant)
 
     const { wrapper } = makeMount()
     await vi.runAllTimersAsync()

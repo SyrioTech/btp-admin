@@ -26,7 +26,7 @@ const fakeTenants: Tenant[] = [
   { id: 't2', name: 'Beta', slug: 'beta', isActive: false, createdAt: '2024-02-01T00:00:00Z' },
 ]
 
-const fakeTenant: Tenant = fakeTenants[0]
+const fakeTenant: Tenant = fakeTenants[0] as Tenant
 
 const fakeUsers: ClientUser[] = [
   {

@@ -30,6 +30,31 @@ const router = createRouter({
           name: 'tenant-detail',
           component: () => import('@/views/tenants/TenantDetailView.vue'),
         },
+        {
+          path: 'consumption',
+          name: 'consumption',
+          component: () => import('@/views/consumption/ConsumptionView.vue'),
+        },
+        {
+          path: 'accounts',
+          name: 'accounts',
+          component: () => import('@/views/accounts/AccountsView.vue'),
+        },
+        {
+          path: 'events',
+          name: 'events',
+          component: () => import('@/views/events/EventsView.vue'),
+        },
+        {
+          path: 'entitlements',
+          name: 'entitlements',
+          component: () => import('@/views/entitlements/EntitlementsView.vue'),
+        },
+        {
+          path: 'audit',
+          name: 'audit',
+          component: () => import('@/views/audit/AuditView.vue'),
+        },
       ],
     },
   ],

@@ -1,6 +1,6 @@
 # BTP Admin UI
 
-A dedicated administration SPA for the **btp-gateway** backend. Manages tenants, BTP accounts, credential sets, and users. No charts or dashboards — pure ops tooling.
+A multi-tenant administration SPA for the **btp-gateway** backend. Manages tenants, BTP accounts, credential sets, and users — and provides operational views for BTP Account hierarchy, Events, Entitlements, and Consumption/Cost data.
 
 ---
 
@@ -18,9 +18,13 @@ A dedicated administration SPA for the **btp-gateway** backend. Manages tenants,
    - [Onboarding a New Customer — Step-by-Step](#onboarding-a-new-customer--step-by-step)
    - [Managing Credentials](#managing-credentials)
    - [Managing Users](#managing-users)
-6. [Environment Variables](#environment-variables)
-7. [Building for Production](#building-for-production)
-8. [Testing](#testing)
+   - [Accounts (BTP Hierarchy)](#accounts-btp-hierarchy)
+   - [Events](#events)
+   - [Entitlements](#entitlements)
+   - [Consumption & Costs](#consumption--costs)
+7. [Environment Variables](#environment-variables)
+8. [Building for Production](#building-for-production)
+9. [Testing](#testing)
 
 ---
 
@@ -84,8 +88,18 @@ btp-admin/
 │       ├── btp-accounts/
 │       │   ├── BtpAccountsTab.vue          # Account list + expandable rows
 │       │   └── CredentialSetsSection.vue   # Credentials per account
-│       └── users/
-│           └── UsersTab.vue           # User list + Create/Edit dialogs
+│       ├── users/
+│       │   └── UsersTab.vue           # User list + Create/Edit dialogs
+│       ├── accounts/
+│       │   └── AccountsView.vue       # Global account hierarchy (tree: dirs + subaccounts)
+│       ├── events/
+│       │   └── EventsView.vue         # BTP platform events with filters and pagination
+│       ├── entitlements/
+│       │   └── EntitlementsView.vue   # Service catalog cards with assignment panel
+│       ├── audit/
+│       │   └── AuditLogsView.vue      # Audit log viewer with time-range and OData filters
+│       └── consumption/
+│           └── ConsumptionView.vue    # Monthly usage + cost charts + cloud credits balance
 └── src/__tests__/             # Vitest test suite
 ```
 
@@ -385,6 +399,64 @@ Deactivating a user (`isActive: false`) prevents them from logging in while pres
 
 ---
 
+### Accounts (BTP Hierarchy)
+
+`/accounts` — displays the full BTP Global Account structure as an interactive tree.
+
+- **Global Account** info card (display name, state, commercial model, contract status)
+- **Directories** shown as collapsible tree nodes with nested sub-directories and subaccounts
+- **Subaccounts** as leaf nodes with region, state badge, and quick-link to BTP cockpit
+- The account selector in the sidebar determines which BTP account's hierarchy is shown
+
+---
+
+### Events
+
+`/events` — paginated view of SAP BTP platform events (account management, entitlement, provisioning actions).
+
+| Filter      | Description                                     |
+| ----------- | ----------------------------------------------- |
+| Event Type  | Drop-down of all known event type categories    |
+| Entity Type | Filter by entity kind (Subaccount, Directory…)  |
+| Entity ID   | Filter by a specific entity GUID                |
+| Date range  | From / To timestamps (datetime-local inputs)    |
+| Page size   | 10 / 25 / 50 / 100 events per page              |
+
+Each event row expands to show the full `details` JSON payload.
+
+---
+
+### Entitlements
+
+`/entitlements` — service catalog view with subaccount assignment information.
+
+- **Service cards** — one card per entitled service with icon, display name, and status badge:
+  - `Active` — service is subscribed/provisioned in at least one subaccount (state OK)
+  - `Assigned` — quota is distributed but no active subscription yet
+  - `Entitled only` — service is available in the global account but not assigned anywhere
+- **Plan list** — click the chevron on any service card to expand the plan list, showing assigned quota per subaccount
+- **Assignment panel** — click a plan row to open the panel with a list of all subaccount assignments, showing display name, description, GUID, state badge, and auto-assign flags
+- **Filter bar** — search by service name, filter by category, toggle "Assigned only" to hide services with no assignments
+- **Subaccount filter** — select a subaccount from the drop-down to see only services assigned to it
+
+---
+
+### Consumption & Costs
+
+`/consumption` — monthly usage and cost overview powered by SAP BTP Usage Data Management (UDM) APIs.
+
+Requires a **UDM** credential set to be configured for the selected BTP account.
+
+| Card / Chart              | Description                                                              |
+| ------------------------- | ------------------------------------------------------------------------ |
+| Cloud Credits Balance     | Current balance from the latest contract phase, with start/end dates     |
+| Top Subaccounts by Cost   | Bar chart of up to 15 subaccounts sorted by total cost for the period    |
+| Top Services Usage        | Bar chart of up to 10 services sorted by total usage quantity            |
+
+Use the **Year** and **Month** selectors in the header to switch the reporting period.
+
+---
+
 ## Environment Variables
 
 | Variable           | Required | Description                                 |
@@ -430,15 +502,17 @@ The test suite uses **Vitest** + **@vue/test-utils** + **happy-dom**.
 
 ### What is tested
 
-| Area                   | File                                        | Type        |
-| ---------------------- | ------------------------------------------- | ----------- |
-| Auth store             | `src/__tests__/stores/auth.spec.ts`         | Unit        |
-| Axios interceptors     | `src/__tests__/lib/axios.spec.ts`           | Unit        |
-| useTenants composable  | `src/__tests__/composables/useTenants.spec.ts` | Unit     |
-| useBtpAccounts composable | `src/__tests__/composables/useBtpAccounts.spec.ts` | Unit |
-| LoginView              | `src/__tests__/views/LoginView.spec.ts`     | Component   |
-| Sidebar                | `src/__tests__/components/Sidebar.spec.ts`  | Component   |
-| TenantsView            | `src/__tests__/views/TenantsView.spec.ts`   | Component   |
-| TenantDetailView       | `src/__tests__/views/TenantDetailView.spec.ts` | Component |
-| Tenant onboarding flow | `src/__tests__/integration/tenantFlow.spec.ts` | Integration |
-| Credential flow        | `src/__tests__/integration/credentialFlow.spec.ts` | Integration |
+| Area                      | File                                                       | Type        |
+| ------------------------- | ---------------------------------------------------------- | ----------- |
+| Auth store                | `src/__tests__/stores/auth.spec.ts`                        | Unit        |
+| Axios interceptors        | `src/__tests__/lib/axios.spec.ts`                          | Unit        |
+| useTenants composable     | `src/__tests__/composables/useTenants.spec.ts`             | Unit        |
+| useBtpAccounts composable | `src/__tests__/composables/useBtpAccounts.spec.ts`         | Unit        |
+| LoginView                 | `src/__tests__/views/LoginView.spec.ts`                    | Component   |
+| Sidebar                   | `src/__tests__/components/Sidebar.spec.ts`                 | Component   |
+| AccountTreeNode           | `src/__tests__/components/AccountTreeNode.spec.ts`         | Component   |
+| TenantsView               | `src/__tests__/views/TenantsView.spec.ts`                  | Component   |
+| TenantDetailView          | `src/__tests__/views/TenantDetailView.spec.ts`             | Component   |
+| AccountsView              | `src/__tests__/views/AccountsView.spec.ts`                 | Component   |
+| Tenant onboarding flow    | `src/__tests__/integration/tenantFlow.spec.ts`             | Integration |
+| Credential flow           | `src/__tests__/integration/credentialFlow.spec.ts`         | Integration |
