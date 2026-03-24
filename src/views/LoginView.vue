@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import syrioIcon from '@/assets/syrio-icon.png'
 
 const schema = toTypedSchema(
   z.object({
@@ -51,11 +52,21 @@ const onSubmit = handleSubmit(async (values) => {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-muted/40 p-4">
-    <Card class="w-full max-w-sm">
+  <div class="flex min-h-screen items-center justify-center bg-sidebar p-4">
+    <div class="w-full max-w-sm space-y-6">
+      <!-- Brand header -->
+      <div class="flex flex-col items-center gap-3">
+        <img :src="syrioIcon" class="h-16 w-16 rounded-full object-contain shadow-lg" alt="Syrio" />
+        <div class="text-center">
+          <h1 class="text-lg font-bold text-sidebar-foreground">BTP Inspector</h1>
+          <p class="text-xs text-sidebar-muted">Syrio Administration Portal</p>
+        </div>
+      </div>
+
+    <Card class="w-full border-sidebar-border bg-background shadow-xl">
       <CardHeader class="space-y-1">
-        <CardTitle class="text-2xl">Sign in</CardTitle>
-        <CardDescription>BTP Gateway Administration</CardDescription>
+        <CardTitle class="text-xl">Sign in</CardTitle>
+        <CardDescription>Enter your credentials to continue</CardDescription>
       </CardHeader>
       <CardContent>
         <form class="space-y-4" @submit="onSubmit">
@@ -106,11 +117,12 @@ const onSubmit = handleSubmit(async (values) => {
             {{ serverError }}
           </p>
 
-          <Button type="submit" class="w-full" :disabled="loading">
+          <Button type="submit" variant="success" class="w-full" :disabled="loading">
             {{ loading ? 'Signing in…' : 'Sign in' }}
           </Button>
         </form>
       </CardContent>
     </Card>
+    </div>
   </div>
 </template>

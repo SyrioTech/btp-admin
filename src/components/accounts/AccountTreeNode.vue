@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import AccountTreeNode from './AccountTreeNode.vue'
 import { Badge } from '@/components/ui/badge'
-import { Folder, FolderOpen, Database, ChevronRight, ChevronDown } from 'lucide-vue-next'
+import { Folder, FolderOpen, Database, ChevronRight, ChevronDown, ExternalLink } from 'lucide-vue-next'
 import type { Directory, Subaccount } from '@/api/types'
+import { RouterLink } from 'vue-router'
 
 export type SubaccountNode = Subaccount & { type: 'subaccount' }
 export type DirectoryNode = Directory & {
@@ -19,6 +20,8 @@ const props = defineProps<{
   node: TreeNode
   depth?: number
   selectedGuid?: string | null
+  expandGeneration?: number
+  collapseGeneration?: number
 }>()
 
 const emit = defineEmits<{
@@ -30,6 +33,9 @@ const d = computed(() => props.depth ?? 0)
 const dir = computed(() => props.node as DirectoryNode)
 const isDir = computed(() => props.node.type === 'directory')
 const childCount = computed(() => dir.value.childDirs.length + dir.value.childSubs.length)
+
+watch(() => props.expandGeneration, (gen) => { if (gen) isExpanded.value = true })
+watch(() => props.collapseGeneration, (gen) => { if (gen) isExpanded.value = false })
 </script>
 
 <template>
@@ -59,6 +65,8 @@ const childCount = computed(() => dir.value.childDirs.length + dir.value.childSu
           :node="child"
           :depth="d + 1"
           :selected-guid="selectedGuid"
+          :expand-generation="expandGeneration"
+          :collapse-generation="collapseGeneration"
           @select="emit('select', $event)"
         />
         <AccountTreeNode
@@ -67,6 +75,8 @@ const childCount = computed(() => dir.value.childDirs.length + dir.value.childSu
           :node="sub"
           :depth="d + 1"
           :selected-guid="selectedGuid"
+          :expand-generation="expandGeneration"
+          :collapse-generation="collapseGeneration"
           @select="emit('select', $event)"
         />
         <!-- Empty directory hint -->
@@ -81,22 +91,34 @@ const childCount = computed(() => dir.value.childDirs.length + dir.value.childSu
     </template>
 
     <!-- Subaccount leaf -->
-    <button
+    <div
       v-else
-      type="button"
-      class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-left transition-colors"
+      class="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors"
       :class="selectedGuid === node.guid ? 'bg-accent text-accent-foreground' : 'hover:bg-muted'"
       :style="{ paddingLeft: `${d * 20 + 28}px` }"
-      @click="emit('select', node as SubaccountNode)"
     >
-      <Database class="h-4 w-4 shrink-0 text-blue-500" />
-      <span class="flex-1 truncate">{{ node.displayName }}</span>
-      <Badge
-        :variant="node.state === 'OK' ? 'default' : 'outline'"
-        class="text-[10px] shrink-0"
+      <button
+        type="button"
+        class="flex flex-1 items-center gap-2 text-left min-w-0"
+        @click="emit('select', node as SubaccountNode)"
       >
-        {{ node.state }}
-      </Badge>
-    </button>
+        <Database class="h-4 w-4 shrink-0 text-blue-500" />
+        <span class="flex-1 truncate">{{ node.displayName }}</span>
+        <Badge
+          :variant="node.state === 'OK' ? 'default' : 'outline'"
+          class="text-[10px] shrink-0"
+        >
+          {{ node.state }}
+        </Badge>
+      </button>
+      <RouterLink
+        :to="`/accounts/${node.guid}`"
+        class="shrink-0 text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded"
+        title="Open detail page"
+        @click.stop
+      >
+        <ExternalLink class="h-3.5 w-3.5" />
+      </RouterLink>
+    </div>
   </div>
 </template>

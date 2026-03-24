@@ -31,13 +31,14 @@ const getCategoryBadge = (category?: string) => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 class="text-3xl font-bold tracking-tight">Audit Logs</h2>
-        <p class="text-muted-foreground mt-1">Platform and security audit records.</p>
+  <div class="page-root">
+    <div class="page-filter-bar">
+      <div class="flex flex-col gap-0.5">
+        <h2 class="text-base font-semibold leading-none">Audit Logs</h2>
+        <p class="text-xs text-muted-foreground">Platform and security audit records</p>
       </div>
     </div>
+  <div class="page-content space-y-4">
     
     <div v-if="!accountId" class="flex h-[400px] items-center justify-center rounded-md border border-dashed">
       <div class="text-center">
@@ -111,5 +112,6 @@ const getCategoryBadge = (category?: string) => {
       <FileSearch class="h-10 w-10 mb-3 opacity-20" />
       <p>No audit logs found for the selected criteria.</p>
     </div>
-  </div>
+  </div><!-- end page-content -->
+  </div><!-- end page-root -->
 </template>

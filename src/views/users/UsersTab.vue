@@ -87,7 +87,7 @@ const onEditSubmit = editForm.handleSubmit(async (values) => {
       <p class="text-sm text-muted-foreground">Manage users for this tenant</p>
       <Dialog v-model:open="createOpen">
         <DialogTrigger as-child>
-          <Button size="sm">
+          <Button size="sm" variant="success">
             <Plus class="mr-1.5 h-4 w-4" />
             Add User
           </Button>
@@ -155,7 +155,7 @@ const onEditSubmit = editForm.handleSubmit(async (values) => {
             <Badge variant="outline" class="capitalize">{{ user.role }}</Badge>
           </TableCell>
           <TableCell>
-            <Badge :variant="user.isActive ? 'default' : 'secondary'">
+            <Badge :variant="user.isActive ? 'success' : 'secondary'">
               {{ user.isActive ? 'Active' : 'Inactive' }}
             </Badge>
           </TableCell>

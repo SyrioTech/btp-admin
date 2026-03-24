@@ -1,6 +1,6 @@
-# BTP Admin UI
+# BTP Admin UI — v0.3.0
 
-A multi-tenant administration SPA for the **btp-gateway** backend. Manages tenants, BTP accounts, credential sets, and users — and provides operational views for BTP Account hierarchy, Events, Entitlements, and Consumption/Cost data.
+A multi-tenant administration SPA for the **btp-gateway** backend. Manages tenants, BTP accounts, credential sets, and users — and provides operational views for BTP Account hierarchy, Events, Entitlements, Consumption/Cost data, Budget alerts, and Environment Instances.
 
 ---
 
@@ -19,12 +19,17 @@ A multi-tenant administration SPA for the **btp-gateway** backend. Manages tenan
    - [Managing Credentials](#managing-credentials)
    - [Managing Users](#managing-users)
    - [Accounts (BTP Hierarchy)](#accounts-btp-hierarchy)
+   - [Subaccount Detail](#subaccount-detail)
    - [Events](#events)
    - [Entitlements](#entitlements)
+   - [Environments](#environments)
    - [Consumption & Costs](#consumption--costs)
+   - [Budgets & Alerts](#budget-overview)
+   - [Audit Logs](#audit-logs)
 7. [Environment Variables](#environment-variables)
 8. [Building for Production](#building-for-production)
-9. [Testing](#testing)
+9. [Changelog](#changelog)
+10. [Testing](#testing)
 
 ---
 
@@ -406,7 +411,25 @@ Deactivating a user (`isActive: false`) prevents them from logging in while pres
 - **Global Account** info card (display name, state, commercial model, contract status)
 - **Directories** shown as collapsible tree nodes with nested sub-directories and subaccounts
 - **Subaccounts** as leaf nodes with region, state badge, and quick-link to BTP cockpit
+- **Label filter chips** — filter subaccounts by key:value labels from the BTP cockpit
+- **View Details** icon (↗) on each subaccount row opens the Subaccount Detail page
 - The account selector in the sidebar determines which BTP account's hierarchy is shown
+
+---
+
+### Subaccount Detail
+
+`/accounts/:guid` — dedicated drill-down page for a single subaccount.
+
+| Section               | Description                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| Header                | Display name, GUID chip, state badge, region, subdomain, label chips        |
+| Current Month Cost    | Total spend this month + top-5 services table                               |
+| Entitlements          | All service plans assigned to this subaccount with quota and state          |
+| Recent Events         | Latest platform events filtered to this subaccount's GUID                  |
+| Environment Instances | CF orgs, Kyma clusters, and other environments linked to this subaccount    |
+
+Navigate back to the full tree with the breadcrumb back button.
 
 ---
 
@@ -441,17 +464,52 @@ Each event row expands to show the full `details` JSON payload.
 
 ---
 
+### Environments
+
+`/environments` — all provisioned environment instances (Cloud Foundry orgs, Kyma clusters, etc.) across the global account.
+
+| Column      | Description                                       |
+| ----------- | ------------------------------------------------- |
+| Name        | Instance display name                             |
+| Type        | Environment type badge (cloudfoundry, kyma, …)   |
+| Subaccount  | Owning subaccount GUID                            |
+| State       | OK / CREATING / DELETING / CREATION_FAILED badge  |
+| Created     | Provisioning timestamp                            |
+
+- Filter by environment type using pill tabs
+- Filter by subaccount using the searchable combobox
+- Click any row to expand the full JSON detail
+
+---
+
 ### Consumption & Costs
 
-`/consumption` — monthly usage and cost overview powered by SAP BTP Usage Data Management (UDM) APIs.
+`/consumption` — monthly usage and cost overview powered by SAP BTP Usage Data Management (UDM) and Budgets APIs.
 
-Requires a **UDM** credential set to be configured for the selected BTP account.
+Requires a **UDM** credential set (for cost/usage data) and a **CIS** credential set (for budgets and cloud credits) to be configured for the selected BTP account.
 
-| Card / Chart              | Description                                                              |
-| ------------------------- | ------------------------------------------------------------------------ |
-| Cloud Credits Balance     | Current balance from the latest contract phase, with start/end dates     |
-| Top Subaccounts by Cost   | Bar chart of up to 15 subaccounts sorted by total cost for the period    |
-| Top Services Usage        | Bar chart of up to 10 services sorted by total usage quantity            |
+| Card / Section            | Description                                                                                      |
+| ------------------------- | ------------------------------------------------------------------------------------------------ |
+| Cloud Credits Balance     | Current balance from the latest contract phase, with start/end dates. Scrollable phase breakdown |
+| Credit Runway             | Projected depletion month based on average monthly burn rate over the last 3 months              |
+| Top Subaccounts by Cost   | Bar chart of up to 15 subaccounts sorted by total cost — click a bar to drill down               |
+| Top Services by Cost      | Pie chart of top 10 cost-generating services for the selected period                             |
+| Subaccount Consumption    | Historical cost trend and full service breakdown for a selected subaccount                       |
+| Budget Overview           | Budgets configured in the BTP cockpit with alert thresholds and current month utilization        |
+| Directory Usage           | Usage data from a directory-scoped UDM service instance (optional)                              |
+
+#### Budget Overview
+
+The **Budget Overview** section reads from the SAP Account Budgets Service (`account-budgets-service.cfapps.<region>.hana.ondemand.com`) using the same CIS credentials. It shows:
+
+- Budget name, ceiling amount, currency, and type (COST / CHARGED_USAGE)
+- Reset interval (MONTHLY)
+- Alert thresholds — e.g. "Alert at 80%", "Alert at 100%" — shown as amber badges; disabled thresholds are struck through
+- Scope: which subaccounts or products the budget applies to (empty = global account scope)
+- **Current utilization bar** — for COST-type budgets, computes this-month spend from the already-loaded subaccount cost data and renders a coloured progress bar (green → amber at 80% → red at 100%)
+- Start / end dates
+
+> **Note:** The SAP Budget API returns budget definitions only — it does not expose a real-time "consumed so far" counter. The utilization bar is an approximation based on the subaccount cost data for the currently selected month.
 
 Use the **Year** and **Month** selectors in the header to switch the reporting period.
 
@@ -482,6 +540,44 @@ location / {
   try_files $uri $uri/ /index.html;
 }
 ```
+
+---
+
+## Changelog
+
+### v0.3.0 — 2026-03-23
+
+**New features**
+- **Global top bar** — persistent header on every page showing live date/time, notification bell, and profile dropdown (with sign-out and administration shortcut)
+- **Syrio branding** — real Syrio logo icon in the sidebar brand header and login screen; teal → blue gradient accent line on every page's filter bar
+- **Budget Overview** — new section in Consumption view showing all budgets configured in the BTP cockpit, alert thresholds, scope (resolved subaccount names), and a current-month utilization bar
+- **Subaccount Detail page** (`/accounts/:guid`) — full drill-down with cost, entitlements, events, and environment instances
+- **Environments view** (`/environments`) — lists all provisioned CF orgs, Kyma clusters, and other environment instances with type/state filtering
+- **Credential Health** on the Dashboard — table of all credential sets across all accounts with inline Test All button
+- **Burn Rate / Runway card** in Consumption — projected credit depletion date based on 3-month average spend
+- **Label filter chips** in Accounts and Consumption — filter subaccounts by BTP cockpit labels
+- **Recent Events feed** on the Dashboard
+
+**Bug fixes**
+- Fixed duplicate entitlement entries in Subaccount Detail and Accounts view — `assignmentInfo` now filtered by `entityId` to match only the current subaccount
+- Fixed chart white space in Consumption layout — charts now stack in a right column with `items-start` grid
+
+**Backend (btp-gateway v0.3.0)**
+- New `BudgetsModule` — full CRUD proxy for the SAP Account Budgets Service
+- `BtpHttpService` extended to route `serviceType: 'budgets'` to `account-budgets-service.cfapps.<region>.hana.ondemand.com`
+- New `ProvisioningModule` — environment instances endpoints
+
+---
+
+### v0.2.0
+
+- Events, Entitlements, Accounts hierarchy views
+- Consumption view with cloud credits and UDM cost data
+- Dashboard with summary cards
+
+### v0.1.x
+
+- Initial release — Auth, Tenants, BTP Accounts, Credential Sets, Users
 
 ---
 

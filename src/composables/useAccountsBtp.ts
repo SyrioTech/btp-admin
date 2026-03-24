@@ -2,12 +2,12 @@ import { useQuery } from '@tanstack/vue-query'
 import type { Ref } from 'vue'
 import { accountsBtpApi } from '@/api/accounts-btp'
 
-export function useGlobalAccount(accountId: Ref<string | null>) {
+export function useGlobalAccount(accountId: Ref<string | null>, expand = false) {
   return useQuery({
-    queryKey: ['accounts', 'global-account', accountId],
+    queryKey: ['accounts', 'global-account', accountId, expand],
     queryFn: () => {
       if (!accountId.value) throw new Error('No BTP account selected')
-      return accountsBtpApi.getGlobalAccount(accountId.value)
+      return accountsBtpApi.getGlobalAccount(accountId.value, expand)
     },
     enabled: () => !!accountId.value,
   })

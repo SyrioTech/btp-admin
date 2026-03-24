@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useBtpAccountStore } from '@/stores/btpAccount'
 import { useEvents, useEventTypes } from '@/composables/useEvents'
+import { useSubaccounts } from '@/composables/useAccountsBtp'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -59,6 +60,21 @@ const filters = computed(() => {
 })
 
 const { data: eventsResponse, isLoading } = useEvents(accountId, filters)
+
+// Subaccount name lookup: maps guid → displayName for enriching event entity labels.
+// For entitlement events (e.g. SubaccountEntitlements_Update) the top-level entityId
+// may be the global account GUID; the actual subaccount GUID lives in details.entityId.
+const { data: subaccounts } = useSubaccounts(accountId)
+const subaccountMap = computed((): Record<string, string> => {
+  const map: Record<string, string> = {}
+  subaccounts.value?.forEach(sa => { map[sa.guid] = sa.displayName })
+  return map
+})
+function subaccountName(event: EventRecord): string | null {
+  return subaccountMap.value[event.entityId]
+    ?? subaccountMap.value[event.details?.entityId as string]
+    ?? null
+}
 
 const getEventIcon = (eventType: string) => {
   if (!eventType) return Info;
@@ -159,30 +175,31 @@ const formatDetailList = (assignments: any) => {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 class="text-3xl font-bold tracking-tight">Administrative Events</h2>
-        <p class="text-muted-foreground mt-1">Platform events for your global account and subaccounts.</p>
+  <div class="page-root">
+    <!-- Sticky filter bar -->
+    <div class="page-filter-bar">
+      <div class="mr-auto flex flex-col gap-0.5">
+        <h2 class="text-base font-semibold leading-none">Administrative Events</h2>
+        <p class="text-xs text-muted-foreground">Platform events for your global account and subaccounts</p>
       </div>
 
-      <div class="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto" v-if="accountId">
-        <Input 
-          type="date" 
+      <template v-if="accountId">
+        <Input
+          type="date"
           v-model="fromDate"
-          class="w-full sm:w-auto"
+          class="h-8 text-xs w-36"
           title="From Date"
         />
-        <span class="text-muted-foreground hidden sm:inline">-</span>
-        <Input 
-          type="date" 
+        <span class="text-muted-foreground text-xs">–</span>
+        <Input
+          type="date"
           v-model="toDate"
-          class="w-full sm:w-auto"
+          class="h-8 text-xs w-36"
           title="To Date"
         />
         <Select v-model="selectedType">
-          <SelectTrigger class="w-full sm:w-[320px]">
-            <SelectValue placeholder="All Categories" />
+          <SelectTrigger class="h-8 text-xs w-56">
+            <SelectValue placeholder="All Event Types" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Event Types</SelectItem>
@@ -191,9 +208,10 @@ const formatDetailList = (assignments: any) => {
             </SelectItem>
           </SelectContent>
         </Select>
-      </div>
+      </template>
     </div>
-    
+
+    <div class="page-content">
     <div v-if="!accountId" class="flex h-[400px] items-center justify-center rounded-md border border-dashed">
       <div class="text-center">
         <h3 class="text-lg font-semibold">No Account Selected</h3>
@@ -263,8 +281,11 @@ const formatDetailList = (assignments: any) => {
           </div>
           
           <div class="flex flex-wrap items-center gap-4 mt-4 text-xs">
-            <div class="flex items-center gap-1.5" v-if="event.entityId">
+            <div class="flex items-center gap-1.5 flex-wrap" v-if="event.entityId">
               <span class="text-muted-foreground">Target {{ event.entityType }}:</span>
+              <span v-if="subaccountName(event)" class="font-medium text-foreground">
+                {{ subaccountName(event) }}
+              </span>
               <span class="font-mono text-muted-foreground">{{ event.entityId }}</span>
             </div>
             <div class="flex items-center gap-1.5" v-if="event.details?.user || event.details?.createdBy">
@@ -280,6 +301,8 @@ const formatDetailList = (assignments: any) => {
       <Search class="h-10 w-10 mb-3 opacity-20" />
       <p>No events found matching your criteria.</p>
     </div>
+
+    </div><!-- end page-content -->
 
     <!-- Event Detail Dialog -->
     <Dialog :open="!!selectedEvent" @update:open="(val) => !val && (selectedEvent = null)">
@@ -297,6 +320,9 @@ const formatDetailList = (assignments: any) => {
             <div>
               <p class="text-muted-foreground text-xs font-medium uppercase mb-1">Entity</p>
               <p class="font-medium">{{ selectedEvent.entityType }}</p>
+              <p v-if="subaccountName(selectedEvent)" class="font-medium text-sm mt-0.5">
+                {{ subaccountName(selectedEvent) }}
+              </p>
               <p class="font-mono text-xs text-muted-foreground mt-1">{{ selectedEvent.entityId }}</p>
             </div>
             <div>
@@ -349,5 +375,5 @@ const formatDetailList = (assignments: any) => {
         </div>
       </DialogContent>
     </Dialog>
-  </div>
+  </div><!-- end page-root -->
 </template>

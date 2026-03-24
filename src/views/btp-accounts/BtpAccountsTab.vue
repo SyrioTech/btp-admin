@@ -72,7 +72,7 @@ async function toggleActive(id: string, current: boolean) {
       <p class="text-sm text-muted-foreground">BTP accounts linked to this tenant</p>
       <Dialog v-model:open="createOpen">
         <DialogTrigger as-child>
-          <Button size="sm">
+          <Button size="sm" variant="success">
             <Plus class="mr-1.5 h-4 w-4" />
             Add Account
           </Button>
@@ -135,7 +135,7 @@ async function toggleActive(id: string, current: boolean) {
             </TableCell>
             <TableCell class="text-sm">{{ account.region }}</TableCell>
             <TableCell>
-              <Badge :variant="account.isActive ? 'default' : 'secondary'">
+              <Badge :variant="account.isActive ? 'success' : 'secondary'">
                 {{ account.isActive ? 'Active' : 'Inactive' }}
               </Badge>
             </TableCell>

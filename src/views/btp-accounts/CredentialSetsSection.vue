@@ -100,7 +100,7 @@ const onCreateSubmit = handleSubmit(async (vals) => {
       </p>
       <Dialog v-model:open="createOpen">
         <DialogTrigger as-child>
-          <Button size="sm" variant="outline">
+          <Button size="sm" variant="success">
             <Plus class="mr-1.5 h-3.5 w-3.5" />
             Add Credential
           </Button>
@@ -175,7 +175,7 @@ const onCreateSubmit = handleSubmit(async (vals) => {
         <TableRow v-for="cred in credentials.data.value" :key="cred.id">
           <TableCell class="font-mono text-xs font-medium">{{ cred.credentialType }}</TableCell>
           <TableCell>
-            <Badge :variant="cred.isActive ? 'default' : 'secondary'" class="text-xs">
+            <Badge :variant="cred.isActive ? 'success' : 'secondary'" class="text-xs">
               {{ cred.isActive ? 'Active' : 'Inactive' }}
             </Badge>
           </TableCell>
@@ -185,7 +185,7 @@ const onCreateSubmit = handleSubmit(async (vals) => {
           <TableCell>
             <template v-if="testResults[cred.id]">
               <Badge
-                :variant="testResults[cred.id]?.success ? 'default' : 'destructive'"
+                :variant="testResults[cred.id]?.success ? 'success' : 'destructive'"
                 class="text-xs"
               >
                 {{ testResults[cred.id]?.success ? 'Pass' : 'Fail' }}

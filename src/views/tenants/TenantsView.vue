@@ -64,17 +64,17 @@ async function toggleActive(id: string, current: boolean) {
 </script>
 
 <template>
-  <div class="p-6">
-    <div class="mb-6 flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-semibold tracking-tight">Tenants</h1>
-        <p class="text-sm text-muted-foreground">Manage all tenants in the system</p>
+  <div class="page-root">
+    <div class="page-filter-bar">
+      <div class="mr-auto flex flex-col gap-0.5">
+        <h2 class="text-base font-semibold leading-none">Tenants</h2>
+        <p class="text-xs text-muted-foreground">Manage all tenants in the system</p>
       </div>
 
       <Dialog v-model:open="createOpen">
         <DialogTrigger as-child>
-          <Button size="sm">
-            <Plus class="mr-1.5 h-4 w-4" />
+          <Button size="sm" variant="success">
+            <Plus class="mr-1.5 h-3.5 w-3.5" />
             New Tenant
           </Button>
         </DialogTrigger>
@@ -104,6 +104,7 @@ async function toggleActive(id: string, current: boolean) {
       </Dialog>
     </div>
 
+    <div class="page-content">
     <div v-if="tenants.isLoading.value" class="text-sm text-muted-foreground">Loading…</div>
     <div v-else-if="tenants.error.value" class="text-sm text-destructive">
       Failed to load tenants.
@@ -128,7 +129,7 @@ async function toggleActive(id: string, current: boolean) {
           <TableCell class="font-medium">{{ tenant.name }}</TableCell>
           <TableCell class="font-mono text-xs text-muted-foreground">{{ tenant.slug }}</TableCell>
           <TableCell>
-            <Badge :variant="tenant.isActive ? 'default' : 'secondary'">
+            <Badge :variant="tenant.isActive ? 'success' : 'secondary'">
               {{ tenant.isActive ? 'Active' : 'Inactive' }}
             </Badge>
           </TableCell>
@@ -153,5 +154,6 @@ async function toggleActive(id: string, current: boolean) {
         </TableRow>
       </TableBody>
     </Table>
-  </div>
+    </div><!-- end page-content -->
+  </div><!-- end page-root -->
 </template>

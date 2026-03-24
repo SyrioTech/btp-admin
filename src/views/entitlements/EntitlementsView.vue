@@ -72,9 +72,9 @@ function serviceStatus(name: string): 'active' | 'assigned' | 'entitled' {
   return serviceStatusMap.value?.get(name) ?? 'entitled'
 }
 
-function serviceStatusVariant(name: string): 'default' | 'secondary' | 'outline' {
+function serviceStatusVariant(name: string): 'success' | 'secondary' | 'outline' {
   const s = serviceStatus(name)
-  if (s === 'active') return 'default'
+  if (s === 'active') return 'success'
   if (s === 'assigned') return 'secondary'
   return 'outline'
 }
@@ -162,10 +162,11 @@ function subaccountAssignments(serviceName: string, planName: string): Assignmen
   return all.filter((a) => a.entityType === 'SUBACCOUNT')
 }
 
-function stateVariant(state?: string): 'default' | 'secondary' | 'destructive' | 'outline' {
-  if (state === 'OK') return 'default'
+function stateVariant(state?: string): 'success' | 'warning' | 'destructive' | 'outline' {
+  if (state === 'OK') return 'success'
   if (state === 'PROCESSING_FAILED') return 'destructive'
-  return 'secondary'
+  if (state === 'PROCESSING' || state === 'STARTED') return 'warning'
+  return 'outline'
 }
 
 function stateLabel(state?: string): string {
@@ -208,24 +209,47 @@ function catVariant(cat?: string): 'default' | 'secondary' | 'outline' {
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- Header -->
-    <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <div>
-        <h2 class="text-3xl font-bold tracking-tight">Entitlements & Quotas</h2>
-        <p class="text-muted-foreground mt-1">Global account service entitlements and subaccount assignments.</p>
+  <div class="page-root">
+    <!-- Sticky filter bar -->
+    <div class="page-filter-bar">
+      <div class="mr-auto flex flex-col gap-0.5">
+        <h2 class="text-base font-semibold leading-none">Entitlements & Quotas</h2>
+        <p class="text-xs text-muted-foreground">Global account service entitlements and subaccount assignments</p>
       </div>
-      <div v-if="filteredServices.length > 0" class="text-sm text-muted-foreground shrink-0">
+
+      <span v-if="filteredServices.length > 0" class="text-xs text-muted-foreground shrink-0">
         <strong class="text-foreground">{{ filteredServices.length }}</strong> services ·
         <strong class="text-foreground">{{ totalPlans }}</strong> plans
-      </div>
+      </span>
+
+      <template v-if="accountId">
+        <div class="relative w-52">
+          <Search class="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+          <Input v-model="searchQuery" placeholder="Filter by service name…" class="pl-8 h-8 text-xs" />
+        </div>
+        <Select v-model="selectedCategory">
+          <SelectTrigger class="h-8 text-xs w-44">
+            <SelectValue placeholder="All categories" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            <SelectItem v-for="cat in availableCategories" :key="cat" :value="cat">{{ cat }}</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button
+          :variant="showOnlyAssigned ? 'default' : 'outline'"
+          size="sm"
+          class="shrink-0"
+          @click="showOnlyAssigned = !showOnlyAssigned"
+        >
+          <Users class="h-3.5 w-3.5 mr-1.5" />
+          Assigned only
+        </Button>
+      </template>
     </div>
 
     <!-- No account -->
-    <div
-      v-if="!accountId"
-      class="flex h-[400px] items-center justify-center rounded-md border border-dashed"
-    >
+    <div v-if="!accountId" class="flex h-[400px] items-center justify-center rounded-md border border-dashed m-6">
       <div class="text-center">
         <h3 class="text-lg font-semibold">No Account Selected</h3>
         <p class="text-sm text-muted-foreground mt-1">Select a BTP Account from the sidebar.</p>
@@ -233,37 +257,8 @@ function catVariant(cat?: string): 'default' | 'secondary' | 'outline' {
     </div>
 
     <template v-else>
-      <!-- Filter bar -->
-      <div class="flex flex-col sm:flex-row gap-3">
-        <div class="relative flex-1">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input
-            v-model="searchQuery"
-            placeholder="Filter by service name…"
-            class="pl-9"
-          />
-        </div>
-        <Select v-model="selectedCategory">
-          <SelectTrigger class="w-full sm:w-[220px]">
-            <SelectValue placeholder="All categories" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All categories</SelectItem>
-            <SelectItem v-for="cat in availableCategories" :key="cat" :value="cat">
-              {{ cat }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
-        <Button
-          :variant="showOnlyAssigned ? 'default' : 'outline'"
-          class="w-full sm:w-auto shrink-0"
-          @click="showOnlyAssigned = !showOnlyAssigned"
-        >
-          <Users class="h-4 w-4 mr-2" />
-          Assigned only
-        </Button>
-      </div>
 
+    <div class="page-content">
       <!-- Loading -->
       <div v-if="isLoading" class="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Skeleton class="h-48 w-full" v-for="i in 6" :key="i" />
@@ -454,6 +449,7 @@ function catVariant(cat?: string): 'default' | 'secondary' | 'outline' {
         <Box class="h-10 w-10 mb-3 opacity-20" />
         <p>No entitlements available for this global account.</p>
       </div>
+    </div><!-- end page-content -->
     </template>
-  </div>
+  </div><!-- end page-root -->
 </template>

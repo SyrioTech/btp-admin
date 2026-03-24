@@ -165,6 +165,11 @@ export interface CloudCreditsResponse {
 
 // ─── Accounts ───────────────────────────────────────────────────────────────
 
+// Polymorphic child type returned in globalAccount?expand=true children arrays.
+// SAP mixes directories and subaccounts in the same children array; discriminate by
+// checking whether directoryFeatures is present (directory) or region is present (subaccount).
+export type TreeChild = Directory | Subaccount
+
 export interface GlobalAccount {
   guid: string
   displayName: string
@@ -181,25 +186,30 @@ export interface GlobalAccount {
   createdDate?: number
   modifiedDate?: number
   subaccounts?: Subaccount[]
-  children?: Directory[]
+  // Populated when fetched with ?expand=true. Contains a mix of Directory and Subaccount objects.
+  children?: TreeChild[]
 }
 
 export interface Directory {
   guid: string
   displayName: string
   description?: string
-  directoryType: string
+  directoryType?: string
   directoryFeatures?: string[]
+  // SAP uses 'entityState' for directories in the expand response; we normalise to 'state' when parsing.
   state: string
+  entityState?: string
   stateMessage?: string
   parentGUID?: string
+  globalAccountGUID?: string
   customProperties?: Record<string, string>
   labels?: Record<string, string[]>
-  createdDate?: number
-  modifiedDate?: number
+  createdDate?: number | string
+  modifiedDate?: number | string
   createdBy?: string
   subaccounts?: Subaccount[]
-  children?: Directory[]
+  // Nested children (dirs + subaccounts) when fetched as part of expand=true
+  children?: TreeChild[]
 }
 
 export interface Subaccount {
@@ -303,6 +313,67 @@ export interface EntitledService {
 export interface EntitlementsResponse {
   entitledServices?: EntitledService[]
   assignedServices?: EntitledService[]
+}
+
+// ─── Provisioning / Environments ────────────────────────────────────────────
+
+export interface EnvironmentInstance {
+  id: string
+  name: string
+  environmentType: string
+  subaccountGUID: string   // SAP field name
+  globalAccountGUID?: string
+  state: string            // 'OK' | 'CREATING' | 'DELETING' | 'CREATION_FAILED' | …
+  stateMessage?: string
+  createdDate: number      // epoch milliseconds
+  modifiedDate: number     // epoch milliseconds
+  parameters?: string      // raw JSON string from SAP
+  landscapeLabel?: string
+  planName?: string
+  serviceName?: string
+}
+
+export interface EnvironmentsResponse {
+  environmentInstances: EnvironmentInstance[]
+}
+
+// ─── Budgets ────────────────────────────────────────────────────────────────
+
+export interface BudgetAlertThreshold {
+  guid: string
+  thresholdValue: number
+  thresholdValueType: 'PERCENTAGE' | 'FIXED'
+  measurementSource: 'ACTUAL'
+  disabled?: boolean
+}
+
+export interface BudgetScope {
+  scopeType: 'SUBACCOUNT_GUID' | 'PRODUCT_ID'
+  value: string
+}
+
+export interface Budget {
+  guid: string
+  displayName: string
+  description?: string
+  amount: number
+  currency?: string
+  budgetType: 'COST' | 'CHARGED_USAGE'
+  budgetPeriodInterval?: 'MONTHLY'
+  startDate: string
+  endDate?: string
+  createdDate: string
+  createdBy?: string
+  modifiedDate?: string
+  modifiedBy?: string
+  globalAccountGUID: string
+  enableAutomaticNotifications: boolean
+  alertThresholds?: BudgetAlertThreshold[]
+  scope?: BudgetScope[]
+}
+
+export interface BudgetsResponse {
+  value: Budget[]
 }
 
 // ─── Audit Logs ────────────────────────────────────────────────────────────

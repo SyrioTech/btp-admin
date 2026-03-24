@@ -41,6 +41,12 @@ const router = createRouter({
           component: () => import('@/views/accounts/AccountsView.vue'),
         },
         {
+          path: 'accounts/:guid',
+          name: 'subaccount-detail',
+          component: () => import('@/views/accounts/SubaccountDetailView.vue'),
+          meta: { requiresAuth: true },
+        },
+        {
           path: 'events',
           name: 'events',
           component: () => import('@/views/events/EventsView.vue'),
@@ -54,6 +60,11 @@ const router = createRouter({
           path: 'audit',
           name: 'audit',
           component: () => import('@/views/audit/AuditView.vue'),
+        },
+        {
+          path: 'environments',
+          name: 'environments',
+          component: () => import('@/views/environments/EnvironmentsView.vue'),
         },
       ],
     },

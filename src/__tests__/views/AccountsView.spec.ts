@@ -19,7 +19,15 @@ vi.mock('@/api/accounts-btp', () => ({
   },
 }))
 
+vi.mock('@/api/entitlements-btp', () => ({
+  entitlementsBtpApi: {
+    getGlobalAssignments: vi.fn(),
+    getSubaccountAssignments: vi.fn(),
+  },
+}))
+
 import { accountsBtpApi } from '@/api/accounts-btp'
+import { entitlementsBtpApi } from '@/api/entitlements-btp'
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -32,22 +40,22 @@ const fakeGlobalAccount: GlobalAccount = {
   region: 'eu10',
 }
 
+// Directories only — SAP expand=true response embeds only dirs in children[]
 const dirA: Directory = {
   guid: 'dir-a',
   displayName: 'Directory Alpha',
-  directoryType: 'FOLDER',
   state: 'OK',
-  parentGUID: 'ga-001',   // child of global account
+  parentGUID: 'ga-001',
 }
 
 const dirB: Directory = {
   guid: 'dir-b',
   displayName: 'Directory Beta',
-  directoryType: 'FOLDER',
   state: 'OK',
   parentGUID: 'dir-a',   // nested under dirA
 }
 
+// Subaccounts come from listSubaccounts, not from expand children[]
 const subInDirA: Subaccount = {
   guid: 'sa-alpha',
   displayName: 'Alpha Subaccount',
@@ -80,6 +88,11 @@ const rootSub: Subaccount = {
   state: 'CREATING',
   parentGUID: 'ga-001',   // directly under global account
   description: 'A root-level subaccount.',
+}
+
+// Helper: compose an expanded GlobalAccount response (dirs only in children[]).
+function ga(dirs: Directory[] = []): GlobalAccount {
+  return { ...fakeGlobalAccount, children: dirs }
 }
 
 // ── Test helpers ──────────────────────────────────────────────────────────────
@@ -116,6 +129,9 @@ describe('AccountsView', () => {
     vi.useFakeTimers()
     setActivePinia(createPinia())
     vi.clearAllMocks()
+    // Defaults
+    vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([])
+    vi.mocked(entitlementsBtpApi.getSubaccountAssignments).mockResolvedValue({ assignedServices: [], entitledServices: [] })
   })
 
   afterEach(() => {
@@ -128,8 +144,6 @@ describe('AccountsView', () => {
 
   it('shows "No Account Selected" when no BTP account is active', () => {
     vi.mocked(accountsBtpApi.getGlobalAccount).mockReturnValue(new Promise(() => {}))
-    vi.mocked(accountsBtpApi.listDirectories).mockReturnValue(new Promise(() => {}))
-    vi.mocked(accountsBtpApi.listSubaccounts).mockReturnValue(new Promise(() => {}))
 
     const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const pinia = createPinia()
@@ -150,18 +164,14 @@ describe('AccountsView', () => {
 
   // ── Loading state ──────────────────────────────────────────────────────────
 
-  it('shows loading skeletons while all three queries are in flight', async () => {
+  it('shows loading skeletons while the query is in flight', async () => {
     vi.mocked(accountsBtpApi.getGlobalAccount).mockReturnValue(new Promise(() => {}))
-    vi.mocked(accountsBtpApi.listDirectories).mockReturnValue(new Promise(() => {}))
-    vi.mocked(accountsBtpApi.listSubaccounts).mockReturnValue(new Promise(() => {}))
 
-    // Pre-seed localStorage so the store initialises with the account already set,
-    // meaning the component enters loading state on its very first render.
+    // Pre-seed localStorage so the store initialises with the account already set
     localStorage.setItem('btp-admin-selected-account', 'btp-acc-1')
     makeMount()
     await flushPromises()
 
-    // Skeleton component renders divs with class 'animate-pulse'
     const skeletons = wrapper.findAll('.animate-pulse')
     expect(skeletons.length).toBeGreaterThan(0)
   })
@@ -169,8 +179,7 @@ describe('AccountsView', () => {
   // ── Successful data render ─────────────────────────────────────────────────
 
   it('renders the global account display name', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirA])
 
     makeMount()
@@ -181,9 +190,7 @@ describe('AccountsView', () => {
   })
 
   it('shows the global account GUID', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([])
-    vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga())
 
     makeMount()
     await vi.runAllTimersAsync()
@@ -193,9 +200,7 @@ describe('AccountsView', () => {
   })
 
   it('shows the contract status badge', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([])
-    vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga())
 
     makeMount()
     await vi.runAllTimersAsync()
@@ -205,8 +210,7 @@ describe('AccountsView', () => {
   })
 
   it('displays summary counters for directories and subaccounts', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA, dirB])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA, dirB]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirA, rootSub])
 
     makeMount()
@@ -221,9 +225,7 @@ describe('AccountsView', () => {
   // ── Tree hierarchy ─────────────────────────────────────────────────────────
 
   it('renders directory names in the tree', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA])
-    vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA]))
 
     makeMount()
     await vi.runAllTimersAsync()
@@ -233,8 +235,7 @@ describe('AccountsView', () => {
   })
 
   it('renders subaccount names in the tree', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirA])
 
     makeMount()
@@ -245,8 +246,7 @@ describe('AccountsView', () => {
   })
 
   it('renders a root-level subaccount (parentGUID = global account GUID)', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga())
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([rootSub])
 
     makeMount()
@@ -257,23 +257,19 @@ describe('AccountsView', () => {
   })
 
   it('properly nests a directory inside its parent directory', async () => {
-    // dirB.parentGUID = 'dir-a' → should be nested under dirA, not at root
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA, dirB])
-    vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([])
+    // dirB.parentGUID = 'dir-a' → should be nested under dirA
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA, dirB]))
 
     makeMount()
     await vi.runAllTimersAsync()
     await flushPromises()
 
-    // Both directory names should be visible (dirB expanded inside dirA)
     expect(wrapper.text()).toContain('Directory Alpha')
     expect(wrapper.text()).toContain('Directory Beta')
   })
 
   it('places a nested subaccount under the correct directory', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA, dirB])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA, dirB]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirB])
 
     makeMount()
@@ -284,9 +280,7 @@ describe('AccountsView', () => {
   })
 
   it('shows "No directories or subaccounts found" for an empty global account', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([])
-    vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga())
 
     makeMount()
     await vi.runAllTimersAsync()
@@ -298,8 +292,7 @@ describe('AccountsView', () => {
   // ── Subaccount detail dialog ───────────────────────────────────────────────
 
   it('opens detail dialog when a subaccount is clicked', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirA])
 
     makeMount()
@@ -313,14 +306,12 @@ describe('AccountsView', () => {
     subBtn!.click()
     await vi.runAllTimersAsync()
 
-    // Dialog is teleported to document.body
     const dialog = document.querySelector('[role="dialog"]')
     expect(dialog).not.toBeNull()
   })
 
   it('dialog shows subaccount display name as title', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirA])
 
     makeMount()
@@ -338,8 +329,7 @@ describe('AccountsView', () => {
   })
 
   it('dialog shows the subaccount GUID', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirA])
 
     makeMount()
@@ -357,8 +347,7 @@ describe('AccountsView', () => {
   })
 
   it('dialog shows the subaccount region', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirA])
 
     makeMount()
@@ -376,8 +365,7 @@ describe('AccountsView', () => {
   })
 
   it('dialog shows the createdBy field', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirA])
 
     makeMount()
@@ -395,8 +383,7 @@ describe('AccountsView', () => {
   })
 
   it('dialog shows the formatted created date', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirA])
 
     makeMount()
@@ -410,13 +397,12 @@ describe('AccountsView', () => {
     await vi.runAllTimersAsync()
 
     const dialog = document.querySelector('[role="dialog"]')
-    // The date 1700000000000 epoch should render as a locale string containing the year 2023
+    // epoch 1700000000000 → 2023
     expect(dialog?.textContent).toContain('2023')
   })
 
   it('dialog renders labels as key:value badges', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirA])
 
     makeMount()
@@ -434,9 +420,8 @@ describe('AccountsView', () => {
     expect(dialog?.textContent).toContain('team: platform')
   })
 
-  it('dialog shows "View Entitlements" button in disabled state', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA])
+  it('dialog shows an enabled "View Entitlements" button', async () => {
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirA])
 
     makeMount()
@@ -453,12 +438,11 @@ describe('AccountsView', () => {
       b.textContent?.includes('View Entitlements'),
     ) as HTMLButtonElement | undefined
     expect(entBtn).toBeDefined()
-    expect(entBtn?.disabled).toBe(true)
+    expect(entBtn?.disabled).toBe(false)
   })
 
   it('dialog shows description when present', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga())
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([rootSub])
 
     makeMount()
@@ -476,8 +460,7 @@ describe('AccountsView', () => {
   })
 
   it('dialog shows beta enabled for a subaccount with betaEnabled=true', async () => {
-    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(fakeGlobalAccount)
-    vi.mocked(accountsBtpApi.listDirectories).mockResolvedValue([dirA, dirB])
+    vi.mocked(accountsBtpApi.getGlobalAccount).mockResolvedValue(ga([dirA, dirB]))
     vi.mocked(accountsBtpApi.listSubaccounts).mockResolvedValue([subInDirB])
 
     makeMount()
@@ -498,8 +481,6 @@ describe('AccountsView', () => {
 
   it('renders the page heading "Accounts Structure"', () => {
     vi.mocked(accountsBtpApi.getGlobalAccount).mockReturnValue(new Promise(() => {}))
-    vi.mocked(accountsBtpApi.listDirectories).mockReturnValue(new Promise(() => {}))
-    vi.mocked(accountsBtpApi.listSubaccounts).mockReturnValue(new Promise(() => {}))
 
     makeMount()
     expect(wrapper.text()).toContain('Accounts Structure')
