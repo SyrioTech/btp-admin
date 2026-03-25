@@ -18,7 +18,7 @@ import LoginView from '@/views/LoginView.vue'
 import TenantsView from '@/views/tenants/TenantsView.vue'
 import TenantDetailView from '@/views/tenants/TenantDetailView.vue'
 import { useAuthStore } from '@/stores/auth'
-import type { Tenant, BtpAccount, ClientUser } from '@/api/types'
+import type { Tenant, ClientUser } from '@/api/types'
 
 vi.mock('@/api/auth', () => ({
   authApi: { login: vi.fn(), me: vi.fn() },
@@ -45,11 +45,7 @@ const newTenant: Tenant = {
   id: 't99', name: 'Gamma Ltd', slug: 'gamma-ltd',
   isActive: true, createdAt: '2024-03-01T00:00:00Z',
 }
-const newAccount: BtpAccount = {
-  id: 'a99', tenantId: 't99', globalAccountId: 'abc-123',
-  displayName: 'Gamma Prod', region: 'eu10',
-  isActive: true, createdAt: '2024-03-01T00:00:00Z',
-}
+
 const newUser: ClientUser = {
   id: 'u99', tenantId: 't99', email: 'ops@gamma.com',
   role: 'admin', isActive: true, createdAt: '2024-03-01T00:00:00Z',
@@ -97,7 +93,7 @@ describe('Tenant onboarding integration flow', () => {
   it('step 1 — successful login stores token and user', async () => {
     vi.mocked(authApi.login).mockResolvedValue({
       accessToken: 'jwt-abc',
-      user: { id: 'u1', email: 'admin@gamma.com', role: 'admin', tenantId: 't1' },
+      user: { id: 'u1', email: 'admin@gamma.com', role: 'admin', tenantId: 't1', tenantSlug: 'gamma', tenantName: 'Gamma' },
     })
 
     const { router, queryClient, pinia } = makeApp()
@@ -173,9 +169,8 @@ describe('Tenant onboarding integration flow', () => {
     expect(tenantsApi.create).toHaveBeenCalledWith({ name: 'Gamma Ltd', slug: 'gamma-ltd' })
   })
 
-  it('step 4 — TenantDetailView shows tenant name and both tabs', async () => {
+  it('step 4 — TenantDetailView shows tenant name and Users section', async () => {
     vi.mocked(tenantsApi.get).mockResolvedValue(newTenant)
-    vi.mocked(btpAccountsApi.list).mockResolvedValue([])
     vi.mocked(tenantsApi.listUsers).mockResolvedValue([])
 
     const { router, queryClient, pinia } = makeApp()
@@ -188,14 +183,12 @@ describe('Tenant onboarding integration flow', () => {
     await vi.runAllTimersAsync()
 
     expect(wrapper.text()).toContain('Gamma Ltd')
-    expect(wrapper.text()).toContain('BTP Accounts')
-    expect(wrapper.text()).toContain('Users')
+    // TenantDetailView now shows UsersTab directly (BTP Accounts moved to /settings)
+    expect(wrapper.text()).not.toContain('BTP Accounts')
   })
 
-  it('step 5 — clicking Add Account opens the dialog', async () => {
+  it('step 5 — TenantDetailView shows Add User button (Users section is primary)', async () => {
     vi.mocked(tenantsApi.get).mockResolvedValue(newTenant)
-    vi.mocked(btpAccountsApi.list).mockResolvedValue([])
-    vi.mocked(btpAccountsApi.create).mockResolvedValue(newAccount)
     vi.mocked(tenantsApi.listUsers).mockResolvedValue([])
 
     const { router, queryClient, pinia } = makeApp()
@@ -207,18 +200,11 @@ describe('Tenant onboarding integration flow', () => {
     })
     await vi.runAllTimersAsync()
 
-    const addAccountBtn = wrapper.findAll('button').find((b) =>
-      b.text().includes('Add Account'),
+    // BTP Accounts are now managed from /settings; TenantDetailView shows Users only
+    const addUserBtn = wrapper.findAll('button').find((b) =>
+      b.text().includes('Add User'),
     )
-    expect(addAccountBtn).toBeDefined()
-    await addAccountBtn!.trigger('click')
-    await vi.runAllTimersAsync()
-
-    // Dialog should contain the Display Name input (teleported or inline)
-    const dnInput =
-      wrapper.find('input[placeholder="Production GA"]').exists() ||
-      !!document.querySelector('input[placeholder="Production GA"]')
-    expect(dnInput).toBe(true)
+    expect(addUserBtn).toBeDefined()
   })
 
   it('step 6 — switching to Users tab reveals Add User button', async () => {

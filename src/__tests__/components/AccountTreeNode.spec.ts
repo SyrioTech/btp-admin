@@ -60,7 +60,11 @@ const dirWithChildren: DirectoryNode = {
 function mountNode(node: DirectoryNode | SubaccountNode, extra: Record<string, unknown> = {}) {
   return mount(AccountTreeNode, {
     props: { node, ...extra },
-    global: { plugins: [createPinia()] },
+    global: {
+      plugins: [createPinia()],
+      // RouterLink requires VueRouter; stub it since navigation isn't under test here
+      stubs: { RouterLink: true },
+    },
   })
 }
 
@@ -92,12 +96,13 @@ describe('AccountTreeNode — subaccount leaf', () => {
 
   it('applies accent class when selectedGuid matches', () => {
     const w = mountNode(subaccountLeaf, { selectedGuid: 'sa-1' })
-    expect(w.find('button').classes()).toContain('bg-accent')
+    // accent class is on the wrapper div, not the inner select button
+    expect(w.find('.bg-accent').exists()).toBe(true)
   })
 
   it('does not apply accent class when selectedGuid differs', () => {
     const w = mountNode(subaccountLeaf, { selectedGuid: 'other-guid' })
-    expect(w.find('button').classes()).not.toContain('bg-accent')
+    expect(w.find('.bg-accent').exists()).toBe(false)
   })
 
   it('does not show a chevron icon', () => {
@@ -191,8 +196,9 @@ describe('AccountTreeNode — depth prop', () => {
   it('applies greater left padding at depth 2 than at depth 0 for a subaccount', () => {
     const w0 = mountNode(subaccountLeaf, { depth: 0 })
     const w2 = mountNode(subaccountLeaf, { depth: 2 })
-    const style0 = w0.find('button').attributes('style') ?? ''
-    const style2 = w2.find('button').attributes('style') ?? ''
+    // padding-left is on the wrapper div, not the inner button
+    const style0 = w0.find('div[style]').attributes('style') ?? ''
+    const style2 = w2.find('div[style]').attributes('style') ?? ''
     const px0 = parseInt(style0.match(/padding-left:\s*(\d+)px/)?.[1] ?? '0')
     const px2 = parseInt(style2.match(/padding-left:\s*(\d+)px/)?.[1] ?? '0')
     expect(px2).toBeGreaterThan(px0)

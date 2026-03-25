@@ -8,6 +8,8 @@ const mockUser: AuthUser = {
   email: 'admin@example.com',
   role: 'admin',
   tenantId: 'tenant-1',
+  tenantSlug: 'test-tenant',
+  tenantName: 'Test Tenant',
 }
 
 describe('auth store', () => {

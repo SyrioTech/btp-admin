@@ -14,6 +14,8 @@ import {
   ArrowLeft, MapPin, Tag, Globe,
   CheckCircle2, XCircle, Info,
 } from 'lucide-vue-next'
+import EventDetailDialog from '@/components/events/EventDetailDialog.vue'
+import type { EventRecord } from '@/api/types'
 
 const route = useRoute()
 const router = useRouter()
@@ -89,7 +91,8 @@ const activeEntitlements = computed(() => {
 })
 
 // ── Recent Events ──────────────────────────────────────────────────────────
-const eventsFilter = ref<any>({ maxNumberOfEvents: 10 })
+const selectedEvent = ref<EventRecord | null>(null)
+const eventsFilter = ref({ pageSize: 10 })
 const { data: eventsResponse, isLoading: eventsLoading } = useEvents(accountId, eventsFilter)
 
 const recentEvents = computed(() => {
@@ -297,7 +300,8 @@ function getEventColor(eventType: string): string {
           <div
             v-for="event in recentEvents"
             :key="event.id"
-            class="flex items-start gap-3 px-3 py-2 rounded-md border text-xs"
+            class="flex items-start gap-3 px-3 py-2 rounded-md border text-xs hover:bg-muted/30 transition-colors cursor-pointer"
+            @click="selectedEvent = event"
           >
             <span
               class="inline-flex items-center justify-center h-6 w-6 rounded border shrink-0 mt-0.5"
@@ -307,7 +311,10 @@ function getEventColor(eventType: string): string {
             </span>
             <div class="flex-1 min-w-0">
               <p class="font-medium truncate">{{ event.eventType }}</p>
-              <p class="text-muted-foreground truncate">{{ event.entityType }} · {{ event.entityId }}</p>
+              <p class="text-muted-foreground truncate">
+                <template v-if="(event.details as any)?.displayName">{{ (event.details as any).displayName }}</template>
+                <template v-else>{{ event.entityType }}</template>
+              </p>
             </div>
             <span class="text-muted-foreground shrink-0">{{ relativeTime(event.actionTime) }}</span>
           </div>
@@ -360,5 +367,10 @@ function getEventColor(eventType: string): string {
       </CardContent>
     </Card>
     </div><!-- end page-content -->
+
+  <EventDetailDialog
+    :event="selectedEvent"
+    @close="selectedEvent = null"
+  />
   </div><!-- end page-root -->
 </template>

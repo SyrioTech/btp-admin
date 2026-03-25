@@ -1,4 +1,4 @@
-# BTP Admin UI — v0.3.0
+# BTP Admin UI — v0.3.1
 
 A multi-tenant administration SPA for the **btp-gateway** backend. Manages tenants, BTP accounts, credential sets, and users — and provides operational views for BTP Account hierarchy, Events, Entitlements, Consumption/Cost data, Budget alerts, and Environment Instances.
 
@@ -16,6 +16,7 @@ A multi-tenant administration SPA for the **btp-gateway** backend. Manages tenan
    - [Dashboard](#dashboard)
    - [Tenants](#tenants)
    - [Onboarding a New Customer — Step-by-Step](#onboarding-a-new-customer--step-by-step)
+   - [Settings — BTP Accounts](#settings--btp-accounts)
    - [Managing Credentials](#managing-credentials)
    - [Managing Users](#managing-users)
    - [Accounts (BTP Hierarchy)](#accounts-btp-hierarchy)
@@ -89,10 +90,12 @@ btp-admin/
 │       ├── DashboardView.vue
 │       ├── tenants/
 │       │   ├── TenantsView.vue        # Tenant list + Create dialog
-│       │   └── TenantDetailView.vue   # Tabbed: BTP Accounts | Users
+│       │   └── TenantDetailView.vue   # Tenant header + Users section
 │       ├── btp-accounts/
 │       │   ├── BtpAccountsTab.vue          # Account list + expandable rows
 │       │   └── CredentialSetsSection.vue   # Credentials per account
+│       ├── settings/
+│       │   └── SettingsView.vue       # Self-service BTP account + credential management
 │       ├── users/
 │       │   └── UsersTab.vue           # User list + Create/Edit dialogs
 │       ├── accounts/
@@ -325,30 +328,53 @@ This is the most common workflow. Follow these steps to go from zero to a fully 
    - **Slug** — e.g. `acme-corp` (lowercase, hyphens only — this is permanent)
 4. Click **Create** → the tenant appears in the table
 
-#### Step 2 — Add a BTP Account
+#### Step 2 — Create an admin user for the tenant
 
 1. Click the tenant row to open **Tenant Detail**
-2. The **BTP Accounts** tab is selected by default
-3. Click **Add Account**
-4. Fill in:
-   - **Display Name** — e.g. `Production Global Account`
-   - **Global Account ID** — the UUID from the BTP cockpit (SAP BTP → Global Account → GUID)
+2. Click **Add User**
+3. Fill in email, a strong password, and select **Role**:
+   - `admin` — full read/write access
+   - `viewer` — read-only access
+4. Click **Add User**
+
+The new user can now log in with the tenant slug, email, and password.
+
+#### Step 3 — Configure BTP Accounts (self-service)
+
+BTP account and credential management is self-service — each tenant configures their own accounts after logging in. Share the tenant slug and the credentials from Step 2 with the customer, then ask them to:
+
+1. Log in with their tenant slug, email, and password
+2. Click **Settings** in the left sidebar (gear icon)
+3. Click **Add Account** and fill in the BTP account details (see [Settings — BTP Accounts](#settings--btp-accounts) for the full walkthrough)
+
+> If you are setting up accounts on behalf of a tenant (e.g. during onboarding), log in as that tenant's admin user and follow the same Settings flow.
+
+---
+
+### Settings — BTP Accounts
+
+`/settings` — accessible from the **Settings** item (gear icon) at the bottom of the left sidebar. This is where each tenant configures the BTP accounts and credentials that power all data views (Accounts, Events, Consumption, etc.).
+
+#### Adding a BTP Account
+
+1. Click **Add Account**
+2. Fill in:
+   - **Display Name** — a friendly label, e.g. `Production Global Account`
+   - **Global Account ID** — the UUID from the SAP BTP cockpit (Global Account → GUID)
    - **Region** — the data-center region code, e.g. `eu10`, `us10`, `ap10`
-5. Click **Add** → the account appears in the table
+3. Click **Add** → the account appears in the table
 
-#### Step 3 — Add Credential Sets
+#### Adding Credential Sets
 
-The BTP account needs credentials for each service it will communicate with. Each credential set covers one service type:
+Each BTP account needs credentials for each service it will communicate with:
 
-| Type        | Service                             |
-| ----------- | ----------------------------------- |
-| `CIS`       | Cloud Integration Suite             |
-| `UDM`       | Unified Data Management             |
-| `AUDIT_LOG` | SAP Audit Log Service               |
+| Type        | Service                  |
+| ----------- | ------------------------ |
+| `CIS`       | Cloud Integration Suite  |
+| `UDM`       | Unified Data Management  |
+| `AUDIT_LOG` | SAP Audit Log Service    |
 
-To add a credential set:
-
-1. On the BTP Accounts tab, click the **chevron (›)** on the account row to expand it
+1. Click the **chevron (›)** on the account row to expand it
 2. Click **Add Credential**
 3. Select the **Type** — a contextual help message explains where to find the values
 4. Fill in the four OAuth2 fields:
@@ -360,31 +386,20 @@ To add a credential set:
 
 > **Where to find service keys**: In the SAP BTP cockpit, navigate to your subaccount → **Services** → **Instances and Subscriptions** → click your service instance → **Service Keys** tab → create or copy an existing key.
 
-#### Step 4 — Test the credentials
+#### Testing Credentials
 
-After adding a credential set, verify it actually works before moving to production:
+After adding a credential set, verify it works before using any data views:
 
-1. In the expanded credential row, click the **flask icon (⌥)**
+1. In the expanded credential row, click the **flask icon**
 2. The result badge updates inline:
-   - **Pass** (green) — the gateway can successfully obtain a token and reach the service
-   - **Fail** (red) — the error message from the gateway is displayed inline; check the token URL, client ID, and secret, then verify the service is reachable from the gateway host
-
-#### Step 5 — Create an admin user for the tenant
-
-1. Switch to the **Users** tab on the Tenant Detail page
-2. Click **Add User**
-3. Fill in email, a strong password, and select **Role**:
-   - `admin` — full read/write access
-   - `viewer` — read-only access
-4. Click **Add User**
-
-The new user can now log in with the tenant slug, email, and password.
+   - **Pass** (green) — the gateway successfully obtained a token and reached the service
+   - **Fail** (red) — error shown inline; check the Token URL, Client ID/Secret, and that the service is reachable from the gateway host
 
 ---
 
 ### Managing Credentials
 
-Credential sets live under a BTP Account. Expand any account row (click the row or the chevron) to see its credential sets and:
+Credential sets live under a BTP Account in **Settings**. Expand any account row to see its credential sets and:
 
 - **Test** (flask icon) — runs a live connectivity check against the gateway backend
 - **Delete** (trash icon) — shows a confirmation dialog before permanently removing the credential
@@ -544,6 +559,15 @@ location / {
 ---
 
 ## Changelog
+
+### v0.3.1 — 2026-03-25
+
+**Architecture**
+- **BTP account management moved to Settings** — BTP accounts and credentials are now managed from `/settings` (sidebar gear icon) instead of the Tenant Detail page. This correctly models the self-service flow: each tenant configures their own accounts after logging in, and the backend always scopes accounts to the JWT tenant.
+- **Tenant Detail simplified** — the BTP Accounts tab has been removed; the page now shows the Users section directly.
+- **`GET /tenants` scoped to own tenant** — the backend now returns only the authenticated user's own tenant record instead of all tenants, preventing cross-tenant data exposure.
+
+---
 
 ### v0.3.0 — 2026-03-23
 

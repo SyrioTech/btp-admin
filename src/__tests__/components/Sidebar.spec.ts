@@ -14,6 +14,8 @@ const mockUser: AuthUser = {
   email: 'admin@test.com',
   role: 'admin',
   tenantId: 't1',
+  tenantSlug: 'test-tenant',
+  tenantName: 'Test Tenant',
 }
 
 function makeRouter(initialPath = '/') {
@@ -32,13 +34,14 @@ function makeRouter(initialPath = '/') {
 describe('Sidebar', () => {
   beforeEach(() => {
     setActivePinia(createPinia())
+    localStorage.clear()
   })
 
   it('renders the application title', () => {
     const wrapper = mount(Sidebar, {
       global: { plugins: [makeRouter(), [VueQueryPlugin, { queryClient }]] },
     })
-    expect(wrapper.text()).toContain('BTP Admin')
+    expect(wrapper.text()).toContain('BTP Inspector')
   })
 
   it('renders Dashboard and Tenants navigation links', () => {
@@ -102,6 +105,6 @@ describe('Sidebar', () => {
     })
 
     const tenantsLink = wrapper.findAll('a').find((a) => a.attributes('href') === '/tenants')
-    expect(tenantsLink?.classes()).toContain('bg-accent')
+    expect(tenantsLink?.classes()).toContain('bg-sidebar-accent')
   })
 })

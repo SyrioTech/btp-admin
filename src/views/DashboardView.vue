@@ -12,6 +12,9 @@ import { useAuthStore } from '@/stores/auth'
 import { useBtpAccountStore } from '@/stores/btpAccount'
 import { useMonthlyUsage } from '@/composables/useConsumption'
 import { useEvents } from '@/composables/useEvents'
+import { useSubaccounts } from '@/composables/useAccountsBtp'
+import EventDetailDialog from '@/components/events/EventDetailDialog.vue'
+import type { EventRecord } from '@/api/types'
 
 const auth = useAuthStore()
 const btpAccountStore = useBtpAccountStore()
@@ -55,9 +58,31 @@ const monthlySpend = computed(() => {
 })
 
 // ── Recent Events ──────────────────────────────────────────────────────────
-const eventsFilter = ref<any>({ maxNumberOfEvents: 8 })
+const eventsFilter = ref({ pageSize: 8 })
 const { data: eventsResponse, isLoading: eventsLoading } = useEvents(accountId, eventsFilter)
 const recentEvents = computed(() => eventsResponse.value?.events?.slice(0, 8) ?? [])
+
+const selectedEvent = ref<EventRecord | null>(null)
+
+const { data: subaccounts } = useSubaccounts(accountId)
+const subaccountMap = computed((): Record<string, string> => {
+  const map: Record<string, string> = {}
+  subaccounts.value?.forEach(sa => { map[sa.guid] = sa.displayName })
+  return map
+})
+function subaccountName(event: EventRecord): string | null {
+  return subaccountMap.value[event.entityId]
+    ?? subaccountMap.value[(event.details as Record<string, unknown>)?.entityId as string]
+    ?? null
+}
+function getPerformedBy(event: EventRecord): string | null {
+  const d = event.details as Record<string, unknown>
+  if (!d) return null
+  for (const f of ['user', 'createdBy', 'changedBy', 'modifiedBy']) {
+    if (d[f] && typeof d[f] === 'string') return d[f] as string
+  }
+  return null
+}
 
 function getEventIcon(eventType: string) {
   if (eventType?.includes('Create') || eventType?.includes('Add')) return CheckCircle2
@@ -230,7 +255,8 @@ async function testAll() {
             <div
               v-for="event in recentEvents"
               :key="event.id"
-              class="flex items-start gap-2.5 px-2 py-1.5 rounded-md border text-xs hover:bg-muted/30 transition-colors"
+              class="flex items-start gap-2.5 px-2 py-1.5 rounded-md border text-xs hover:bg-muted/30 transition-colors cursor-pointer"
+              @click="selectedEvent = event"
             >
               <span
                 class="inline-flex items-center justify-center h-5 w-5 rounded border shrink-0 mt-0.5"
@@ -240,7 +266,14 @@ async function testAll() {
               </span>
               <div class="flex-1 min-w-0">
                 <p class="font-medium truncate">{{ event.eventType }}</p>
-                <p class="text-muted-foreground truncate">{{ event.entityType }}</p>
+                <p class="text-muted-foreground truncate">
+                  <template v-if="(event.details as any)?.displayName">{{ (event.details as any).displayName }}</template>
+                  <template v-else-if="subaccountName(event)">{{ subaccountName(event) }}</template>
+                  <template v-else>{{ event.entityType }}</template>
+                </p>
+                <p v-if="getPerformedBy(event)" class="text-muted-foreground/70 truncate text-[10px]">
+                  by {{ getPerformedBy(event) }}
+                </p>
               </div>
               <span class="text-muted-foreground shrink-0 text-[10px]">{{ relativeTime(event.actionTime) }}</span>
             </div>
@@ -307,5 +340,11 @@ async function testAll() {
 
     </div>
   </div><!-- end p-6 -->
+
+  <EventDetailDialog
+    :event="selectedEvent"
+    :subaccountMap="subaccountMap"
+    @close="selectedEvent = null"
+  />
   </div><!-- end page-root -->
 </template>

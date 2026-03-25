@@ -98,7 +98,7 @@ describe('LoginView', () => {
   it('calls authApi.login with correct payload on valid submit', async () => {
     vi.mocked(authApi.login).mockResolvedValue({
       accessToken: 'test-token',
-      user: { id: 'u1', email: 'admin@acme.com', role: 'admin', tenantId: 't1' },
+      user: { id: 'u1', email: 'admin@acme.com', role: 'admin', tenantId: 't1', tenantSlug: 'acme', tenantName: 'Acme' },
     })
 
     const { wrapper } = mountLogin()
@@ -120,7 +120,7 @@ describe('LoginView', () => {
   it('stores auth token in Pinia after successful login', async () => {
     vi.mocked(authApi.login).mockResolvedValue({
       accessToken: 'jwt-token',
-      user: { id: 'u1', email: 'admin@acme.com', role: 'admin', tenantId: 't1' },
+      user: { id: 'u1', email: 'admin@acme.com', role: 'admin', tenantId: 't1', tenantSlug: 'acme', tenantName: 'Acme' },
     })
 
     const { wrapper } = mountLogin()

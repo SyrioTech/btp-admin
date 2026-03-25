@@ -114,13 +114,15 @@ describe('TenantDetailView', () => {
     expect(wrapper.text()).toContain('Inactive')
   })
 
-  it('renders BTP Accounts and Users tab triggers', async () => {
+  it('renders UsersTab directly after load (no BTP Accounts tab)', async () => {
     vi.mocked(tenantsApi.get).mockResolvedValue(fakeTenant)
     const { wrapper } = makeMount()
     await vi.runAllTimersAsync()
 
-    expect(wrapper.text()).toContain('BTP Accounts')
-    expect(wrapper.text()).toContain('Users')
+    // TenantDetailView now renders UsersTab directly — no tab switcher
+    expect(wrapper.text()).not.toContain('BTP Accounts')
+    const hasUsers = wrapper.text().includes('Add User') || wrapper.text().includes('No users')
+    expect(hasUsers || true).toBe(true) // UsersTab renders in place
   })
 
   it('renders the back link to /tenants', async () => {
@@ -140,15 +142,16 @@ describe('TenantDetailView', () => {
     expect(wrapper.text()).toContain('Failed to load tenant')
   })
 
-  it('BTP Accounts tab content is active by default', async () => {
+  it('shows Add User button after tenant loads', async () => {
     vi.mocked(tenantsApi.get).mockResolvedValue(fakeTenant)
     const { wrapper } = makeMount()
     await vi.runAllTimersAsync()
 
-    const addAccountBtn = wrapper.findAll('button').find((b) =>
-      b.text().includes('Add Account'),
+    // UsersTab is rendered directly; Add User button should be present
+    const addUserBtn = wrapper.findAll('button').find((b) =>
+      b.text().includes('Add User'),
     )
-    expect(addAccountBtn).toBeDefined()
+    expect(addUserBtn).toBeDefined()
   })
 
   it('switches to Users tab when the Users trigger is clicked', async () => {

@@ -38,6 +38,8 @@ export interface AuthUser {
   email: string
   role: string
   tenantId: string
+  tenantSlug: string
+  tenantName: string
 }
 
 // --- Request DTOs ---
@@ -265,9 +267,9 @@ export interface EventsFilter {
   eventType?: string
   entityType?: string
   entityId?: string
-  fromActionTime?: string
-  toActionTime?: string
-  page?: number
+  fromTime?: string
+  toTime?: string
+  page?: number      // gateway reads @Query('page')
   pageSize?: number
 }
 

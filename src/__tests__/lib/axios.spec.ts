@@ -12,6 +12,8 @@ const mockUser: AuthUser = {
   email: 'admin@test.com',
   role: 'admin',
   tenantId: 't1',
+  tenantSlug: 'test-tenant',
+  tenantName: 'Test Tenant',
 }
 
 describe('axios request interceptor (via auth store)', () => {

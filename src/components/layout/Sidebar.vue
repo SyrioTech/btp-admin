@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { useRoute, useRouter } from 'vue-router'
-import { watch } from 'vue'
+import { computed, watch } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useBtpAccountStore } from '@/stores/btpAccount'
 import { useBtpAccounts } from '@/composables/useBtpAccounts'
 import {
   LayoutDashboard, Building2, LogOut, LineChart, Network,
-  ListTodo, KeySquare, FileSearch, Server,
+  ListTodo, KeySquare, FileSearch, Server, Settings2,
 } from 'lucide-vue-next'
 import syrioIcon from '@/assets/syrio-icon.png'
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+  Select, SelectContent, SelectItem, SelectTrigger,
 } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
 
@@ -20,6 +20,10 @@ const auth = useAuthStore()
 const btpAccountStore = useBtpAccountStore()
 
 const { accounts } = useBtpAccounts()
+
+const selectedAccount = computed(() =>
+  accounts.data.value?.find((a: any) => a.id === btpAccountStore.selectedAccountId) ?? null
+)
 
 watch(() => accounts.data.value, (newAccounts) => {
   if (newAccounts && newAccounts.length > 0) {
@@ -41,6 +45,7 @@ const navItems = [
   { to: '/events', label: 'Events', icon: ListTodo },
   { to: '/entitlements', label: 'Entitlements', icon: KeySquare },
   { to: '/audit', label: 'Audit Logs', icon: FileSearch },
+  { to: '/settings', label: 'Settings', icon: Settings2 },
 ]
 
 function isActive(path: string) {
@@ -58,29 +63,47 @@ async function logout() {
   <aside class="flex h-full w-60 shrink-0 flex-col bg-sidebar">
     <!-- Brand header -->
     <div class="flex h-14 items-center gap-3 px-4 shrink-0 border-b border-sidebar-border">
-      <img :src="syrioIcon" class="h-8 w-8 shrink-0 rounded-full object-contain" alt="Syrio" />
+      <div class="h-8 w-8 shrink-0 rounded-full overflow-hidden flex items-center justify-center bg-sidebar-accent/20">
+        <img :src="syrioIcon" class="h-full w-full object-cover" alt="Syrio" />
+      </div>
       <div class="min-w-0">
         <p class="text-sm font-semibold text-sidebar-accent-foreground leading-tight truncate">Syrio</p>
         <p class="text-[10px] text-sidebar-muted leading-tight">BTP Inspector</p>
       </div>
     </div>
 
-    <!-- Account picker -->
-    <div class="border-b border-sidebar-border px-4 py-3 shrink-0">
+    <!-- Tenant + Account picker -->
+    <div class="border-b border-sidebar-border px-4 py-3 shrink-0 space-y-3">
+      <!-- Tenant indicator -->
+      <div v-if="auth.user" class="flex flex-col gap-0.5">
+        <span class="text-[10px] font-semibold text-sidebar-muted uppercase tracking-widest">Tenant</span>
+        <div class="flex items-center gap-1.5 min-w-0">
+          <span class="text-xs font-medium text-sidebar-accent-foreground truncate">{{ auth.user.tenantName }}</span>
+          <span class="shrink-0 text-[9px] font-mono text-sidebar-muted bg-sidebar-accent/30 px-1.5 py-0.5 rounded">{{ auth.user.tenantSlug }}</span>
+        </div>
+      </div>
+
+      <!-- Account selector -->
       <div v-if="accounts.isLoading.value" class="space-y-1.5">
         <Skeleton class="h-3 w-24 bg-sidebar-accent" />
-        <Skeleton class="h-8 w-full bg-sidebar-accent" />
+        <Skeleton class="h-9 w-full bg-sidebar-accent" />
       </div>
       <div v-else class="flex flex-col gap-1.5">
         <label class="text-[10px] font-semibold text-sidebar-muted uppercase tracking-widest">
-          Active Account
+          BTP Account
         </label>
         <Select
           :model-value="btpAccountStore.selectedAccountId ?? undefined"
           @update:model-value="(val) => btpAccountStore.setAccount(val as string)"
         >
-          <SelectTrigger class="w-full h-8 text-xs bg-sidebar-accent border-sidebar-border text-sidebar-accent-foreground focus:ring-sidebar-primary">
-            <SelectValue placeholder="Select account…" />
+          <SelectTrigger class="w-full h-auto min-h-[2.25rem] py-1.5 px-2 text-xs bg-sidebar-accent border-sidebar-border text-sidebar-accent-foreground focus:ring-sidebar-primary">
+            <div v-if="selectedAccount" class="flex flex-col text-left leading-tight gap-0.5 min-w-0 flex-1 overflow-hidden">
+              <span class="text-xs font-medium truncate">{{ selectedAccount.displayName }}</span>
+              <span class="text-[10px] text-sidebar-muted font-mono">
+                {{ selectedAccount.region }} · {{ selectedAccount.globalAccountId.substring(0, 8) }}…
+              </span>
+            </div>
+            <span v-else class="text-sidebar-muted text-xs">Select account…</span>
           </SelectTrigger>
           <SelectContent>
             <SelectItem
@@ -88,13 +111,15 @@ async function logout() {
               :key="acc.id"
               :value="acc.id"
             >
-              <div class="flex flex-col">
-                <span class="text-xs">{{ acc.displayName }}</span>
-                <span class="text-[10px] text-muted-foreground">{{ acc.region }}</span>
+              <div class="flex flex-col leading-tight py-0.5">
+                <span class="text-xs font-medium">{{ acc.displayName }}</span>
+                <span class="text-[10px] text-muted-foreground font-mono">
+                  {{ acc.region }} · {{ acc.globalAccountId.substring(0, 8) }}…
+                </span>
               </div>
             </SelectItem>
             <div v-if="!accounts.data.value?.length" class="p-2 text-xs text-muted-foreground text-center">
-              No accounts available
+              No accounts configured
             </div>
           </SelectContent>
         </Select>

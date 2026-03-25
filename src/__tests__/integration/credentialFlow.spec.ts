@@ -10,9 +10,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { mount, flushPromises } from '@vue/test-utils'
 import { createPinia, setActivePinia } from 'pinia'
-import { createRouter, createMemoryHistory } from 'vue-router'
+
 import { VueQueryPlugin, QueryClient } from '@tanstack/vue-query'
-import TenantDetailView from '@/views/tenants/TenantDetailView.vue'
+import BtpAccountsTab from '@/views/btp-accounts/BtpAccountsTab.vue'
 import CredentialSetsSection from '@/views/btp-accounts/CredentialSetsSection.vue'
 import type { Tenant, BtpAccount, CredentialSet } from '@/api/types'
 
@@ -89,19 +89,13 @@ function makeCredentialWrapper(accountId = 'a1') {
 function makeDetailWrapper() {
   const queryClient = makeQueryClient()
   const pinia = createPinia()
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [
-      { path: '/tenants/:id', component: TenantDetailView },
-      { path: '/tenants', component: { template: '<div />' } },
-    ],
-  })
-  router.push('/tenants/t1')
-  const wrapper = mount(TenantDetailView, {
+  // BTP account management now lives in /settings via BtpAccountsTab, not TenantDetailView
+  const wrapper = mount(BtpAccountsTab, {
     attachTo: document.body,
-    global: { plugins: [pinia, router, [VueQueryPlugin, { queryClient }]] },
+    props: { tenantId: 't1' },
+    global: { plugins: [pinia, [VueQueryPlugin, { queryClient }]] },
   })
-  return { wrapper, router }
+  return { wrapper }
 }
 
 describe('CredentialSetsSection', () => {

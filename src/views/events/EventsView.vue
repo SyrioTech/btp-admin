@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useBtpAccountStore } from '@/stores/btpAccount'
 import { useEvents, useEventTypes } from '@/composables/useEvents'
 import { useSubaccounts } from '@/composables/useAccountsBtp'
 import { Skeleton } from '@/components/ui/skeleton'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import {
   Select,
   SelectContent,
@@ -12,16 +13,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog'
-import { Input } from '@/components/ui/input'
-import { CalendarClock, CheckCircle2, XCircle, Info, Search } from 'lucide-vue-next'
-import type { EventRecord } from '@/api/types'
+import { CalendarClock, CheckCircle2, XCircle, Info, Search, Filter, X } from 'lucide-vue-next'
+import type { EventRecord, EventsFilter } from '@/api/types'
+import EventDetailDialog from '@/components/events/EventDetailDialog.vue'
+import { filterEventsByDate } from '@/utils/filterEventsByDate'
 
 const btpAccountStore = useBtpAccountStore()
 const accountId = computed(() => btpAccountStore.selectedAccountId)
@@ -35,31 +30,60 @@ const eventTypesList = computed(() => {
 
 // Filters
 const selectedType = ref<string>('all')
+// Displayed in the inputs — not sent to the API until the user clicks Apply
 const fromDate = ref<string>('')
 const toDate = ref<string>('')
-const limit = ref<number>(50)
+const pageSize = 50
+
+// Committed values — only updated on Apply click, these drive the actual query
+const appliedFromDate = ref<string>('')
+const appliedToDate = ref<string>('')
+
+const hasDateFilter = computed(() => !!(appliedFromDate.value || appliedToDate.value))
+const isPendingApply = computed(
+  () => fromDate.value !== appliedFromDate.value || toDate.value !== appliedToDate.value,
+)
+
+function applyDateFilter() {
+  appliedFromDate.value = fromDate.value
+  appliedToDate.value = toDate.value
+  currentPage.value = 1
+}
+
+function clearDateFilter() {
+  fromDate.value = ''
+  toDate.value = ''
+  appliedFromDate.value = ''
+  appliedToDate.value = ''
+  currentPage.value = 1
+}
+
+// Pagination — reset to page 1 whenever any filter changes
+const currentPage = ref(1)
+watch([selectedType, appliedFromDate, appliedToDate], () => { currentPage.value = 1 })
 
 const selectedEvent = ref<EventRecord | null>(null)
 
-const filters = computed(() => {
-  const f: any = { maxNumberOfEvents: limit.value }
+const filters = computed<EventsFilter>(() => {
+  const f: EventsFilter = { pageSize, page: currentPage.value }
   if (selectedType.value !== 'all') f.eventType = selectedType.value
-  
-  // Try to parse dates to Unix milliseconds strings as expected by the API
-  if (fromDate.value) {
-    const time = new Date(fromDate.value).getTime()
-    if (!isNaN(time)) f.fromTime = time.toString()
-  }
-  if (toDate.value) {
-    // Add 24h to include the entire end date selected
-    const time = new Date(toDate.value).getTime() + (24 * 60 * 60 * 1000) - 1
-    if (!isNaN(time)) f.toTime = time.toString()
-  }
-  
+  // Send dates to SAP as full ISO-8601 timestamps so it filters server-side.
+  // Pagination then works on the filtered result set — all matching events are reachable.
+  if (appliedFromDate.value) f.fromTime = `${appliedFromDate.value}T00:00:00.000Z`
+  if (appliedToDate.value) f.toTime = `${appliedToDate.value}T23:59:59.999Z`
   return f
 })
 
 const { data: eventsResponse, isLoading } = useEvents(accountId, filters)
+
+// Client-side date filter using the tested pure utility function.
+const filteredEvents = computed(() =>
+  filterEventsByDate(
+    eventsResponse.value?.events ?? [],
+    appliedFromDate.value,
+    appliedToDate.value,
+  ),
+)
 
 // Subaccount name lookup: maps guid → displayName for enriching event entity labels.
 // For entitlement events (e.g. SubaccountEntitlements_Update) the top-level entityId
@@ -88,40 +112,6 @@ const getEventColor = (eventType: string) => {
   if (eventType.includes('error') || eventType.includes('Delete') || eventType.includes('Remove')) return 'text-destructive bg-destructive/10 border-destructive/20';
   if (eventType.includes('Create') || eventType.includes('Add') || eventType.includes('Success')) return 'text-green-500 bg-green-500/10 border-green-500/20';
   return 'text-muted-foreground bg-muted border-muted-foreground/20';
-}
-
-const parsePlanAssignments = (assignments: any) => {
-  if (!assignments) return [];
-  
-  let parsed = assignments;
-  if (typeof assignments === 'string') {
-    try {
-      parsed = JSON.parse(assignments);
-    } catch (e) {
-      return [{ raw: assignments }];
-    }
-  }
-
-  if (Array.isArray(parsed)) {
-    return parsed.map(a => typeof a === 'object' ? a : { raw: String(a) });
-  }
-  
-  if (typeof parsed === 'object') {
-    const plans = [];
-    for (const [key, val] of Object.entries(parsed)) {
-      if (typeof val === 'object' && val !== null) {
-        plans.push({
-          _id: key,
-          ...val
-        });
-      } else {
-        plans.push({ [key]: val });
-      }
-    }
-    return plans;
-  }
-
-  return [{ raw: String(parsed) }];
 }
 
 const formatDetailList = (assignments: any) => {
@@ -184,19 +174,43 @@ const formatDetailList = (assignments: any) => {
       </div>
 
       <template v-if="accountId">
-        <Input
-          type="date"
-          v-model="fromDate"
-          class="h-8 text-xs w-36"
-          title="From Date"
-        />
-        <span class="text-muted-foreground text-xs">–</span>
-        <Input
-          type="date"
-          v-model="toDate"
-          class="h-8 text-xs w-36"
-          title="To Date"
-        />
+        <!-- Date range — committed only on Apply click -->
+        <div class="flex items-center gap-1.5">
+          <input
+            type="date"
+            v-model="fromDate"
+            class="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring w-36"
+            title="From Date"
+          />
+          <span class="text-muted-foreground text-xs">–</span>
+          <input
+            type="date"
+            v-model="toDate"
+            class="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring w-36"
+            title="To Date"
+          />
+          <Button
+            size="sm"
+            variant="default"
+            class="h-8 gap-1 text-xs px-2.5"
+            :class="isPendingApply ? 'ring-1 ring-primary' : ''"
+            @click="applyDateFilter"
+          >
+            <Filter class="h-3 w-3" />
+            Apply
+          </Button>
+          <Button
+            v-if="hasDateFilter"
+            size="sm"
+            variant="ghost"
+            class="h-8 w-8 p-0"
+            title="Clear date filter"
+            @click="clearDateFilter"
+          >
+            <X class="h-3.5 w-3.5" />
+          </Button>
+        </div>
+
         <Select v-model="selectedType">
           <SelectTrigger class="h-8 text-xs w-56">
             <SelectValue placeholder="All Event Types" />
@@ -212,6 +226,24 @@ const formatDetailList = (assignments: any) => {
     </div>
 
     <div class="page-content">
+
+    <!-- Active date filter summary -->
+    <div v-if="hasDateFilter" class="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+      <Filter class="h-3 w-3 shrink-0" />
+      <span>
+        Date filter
+        <span class="font-medium text-foreground">{{ appliedFromDate || '…' }}</span>
+        →
+        <span class="font-medium text-foreground">{{ appliedToDate || '…' }}</span>
+        <template v-if="eventsResponse">
+          ·
+          <span class="font-medium text-foreground">{{ eventsResponse.total }}</span>
+          matching events
+        </template>
+      </span>
+      <button class="hover:text-foreground underline underline-offset-2 shrink-0" @click="clearDateFilter">clear</button>
+    </div>
+
     <div v-if="!accountId" class="flex h-[400px] items-center justify-center rounded-md border border-dashed">
       <div class="text-center">
         <h3 class="text-lg font-semibold">No Account Selected</h3>
@@ -223,9 +255,9 @@ const formatDetailList = (assignments: any) => {
       <Skeleton class="h-24 w-full" v-for="i in 5" :key="i" />
     </div>
 
-    <div v-else-if="eventsResponse?.events.length" class="space-y-4">
-      <div 
-        v-for="event in eventsResponse.events" 
+    <div v-else-if="filteredEvents.length" class="space-y-4">
+      <div
+        v-for="event in filteredEvents"
         :key="event.id"
         class="flex gap-4 p-4 rounded-lg border bg-card text-card-foreground shadow-sm hover:border-primary/50 cursor-pointer transition-all hover:bg-muted/50"
         @click="selectedEvent = event"
@@ -299,81 +331,59 @@ const formatDetailList = (assignments: any) => {
 
     <div v-else class="flex h-[300px] flex-col items-center justify-center rounded-md border border-dashed text-muted-foreground">
       <Search class="h-10 w-10 mb-3 opacity-20" />
-      <p>No events found matching your criteria.</p>
+      <p v-if="hasDateFilter">
+        No events found in the selected date range.
+        <button class="ml-1 underline underline-offset-2 hover:text-foreground" @click="clearDateFilter">Clear filter</button>
+      </p>
+      <p v-else>No events found matching your criteria.</p>
+    </div>
+
+    <!-- Pagination -->
+    <div
+      v-if="eventsResponse && !isLoading"
+      class="flex items-center justify-between mt-4 pt-4 border-t text-xs text-muted-foreground"
+    >
+      <span>
+        Page
+        <span class="font-medium text-foreground">{{ eventsResponse.pageNum }}</span>
+        <template v-if="eventsResponse.totalPages > 0">
+          of <span class="font-medium text-foreground">{{ eventsResponse.totalPages }}</span>
+        </template>
+        · <span class="font-medium text-foreground">{{ eventsResponse.total }}</span> total events
+      </span>
+      <div class="flex items-center gap-1">
+        <Button
+          size="sm" variant="outline" class="h-7 px-2 text-xs"
+          :disabled="currentPage <= 1"
+          title="First page"
+          @click="currentPage = 1"
+        >«</Button>
+        <Button
+          size="sm" variant="outline" class="h-7 px-2.5 text-xs"
+          :disabled="currentPage <= 1"
+          @click="currentPage--"
+        >‹ Prev</Button>
+        <span class="px-2 tabular-nums font-medium text-foreground">{{ currentPage }}</span>
+        <Button
+          size="sm" variant="outline" class="h-7 px-2.5 text-xs"
+          :disabled="!eventsResponse.morePages"
+          @click="currentPage++"
+        >Next ›</Button>
+        <Button
+          size="sm" variant="outline" class="h-7 px-2 text-xs"
+          :disabled="!eventsResponse.morePages"
+          title="Last page"
+          @click="currentPage = eventsResponse.totalPages"
+        >»</Button>
+      </div>
     </div>
 
     </div><!-- end page-content -->
 
-    <!-- Event Detail Dialog -->
-    <Dialog :open="!!selectedEvent" @update:open="(val) => !val && (selectedEvent = null)">
-      <DialogContent class="max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-        <DialogHeader>
-          <DialogTitle class="flex items-center gap-2 text-xl">
-            <component :is="getEventIcon(selectedEvent?.eventType || '')" class="h-6 w-6" :class="getEventColor(selectedEvent?.eventType || '')" />
-            {{ selectedEvent?.eventType }}
-          </DialogTitle>
-          <DialogDescription class="hidden">Full details and JSON payload for the selected event.</DialogDescription>
-        </DialogHeader>
-        
-        <div class="overflow-y-auto pr-2 mt-4 space-y-6" v-if="selectedEvent">
-          <div class="grid grid-cols-2 gap-4 text-sm bg-muted/30 p-4 rounded-lg border">
-            <div>
-              <p class="text-muted-foreground text-xs font-medium uppercase mb-1">Entity</p>
-              <p class="font-medium">{{ selectedEvent.entityType }}</p>
-              <p v-if="subaccountName(selectedEvent)" class="font-medium text-sm mt-0.5">
-                {{ subaccountName(selectedEvent) }}
-              </p>
-              <p class="font-mono text-xs text-muted-foreground mt-1">{{ selectedEvent.entityId }}</p>
-            </div>
-            <div>
-              <p class="text-muted-foreground text-xs font-medium uppercase mb-1">Time</p>
-              <p class="font-medium">{{ new Date(selectedEvent.actionTime).toLocaleString() }}</p>
-              <p class="text-xs text-muted-foreground mt-1">Created: {{ new Date(selectedEvent.creationTime).toLocaleString() }}</p>
-            </div>
-          </div>
-
-          <div v-if="selectedEvent.details?.servicePlanAssignments">
-            <h4 class="text-sm font-semibold mb-2 flex items-center gap-2">
-              Plan Assignments
-            </h4>
-            <div class="space-y-2 mb-6">
-              <div 
-                v-for="(plan, idx) in parsePlanAssignments(selectedEvent.details.servicePlanAssignments)" 
-                :key="idx"
-                class="rounded-md border bg-muted/40 overflow-hidden"
-              >
-                <div v-if="plan.raw" class="p-2 text-xs text-muted-foreground">{{ plan.raw }}</div>
-                <table v-else class="w-full text-xs text-left">
-                  <tbody class="divide-y divide-border">
-                    <tr v-for="(v, k) in plan" :key="k" class="divide-x divide-border">
-                      <td class="px-2 py-1.5 font-medium text-muted-foreground bg-muted/30 w-1/4 align-top">{{ k === '_id' ? 'ID' : k }}</td>
-                      <td class="px-2 py-1.5 font-mono text-[10px] break-all align-top text-foreground bg-card">
-                        <span v-if="typeof v === 'object' && v !== null && Object.keys(v).length === 0" class="text-muted-foreground italic">none</span>
-                        <pre v-else-if="typeof v === 'object' && v !== null" class="whitespace-pre-wrap m-0 font-inherit">{{ JSON.stringify(v, null, 2) }}</pre>
-                        <span v-else>{{ String(v) }}</span>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-
-          <div>
-            <h4 class="text-sm font-semibold mb-2 flex items-center gap-2">
-              Event Details Payload
-            </h4>
-            <div class="bg-zinc-950 text-zinc-50 p-4 rounded-lg overflow-x-auto text-xs font-mono">
-              <pre>{{ JSON.stringify(selectedEvent.details, null, 2) }}</pre>
-            </div>
-          </div>
-          
-          <div class="text-xs text-muted-foreground flex justify-between border-t pt-4">
-            <span><strong>Event ID:</strong> {{ selectedEvent.id }}</span>
-            <span><strong>Global Account:</strong> {{ selectedEvent.globalAccountGUID }}</span>
-          </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+    <EventDetailDialog
+      :event="selectedEvent"
+      :subaccountMap="subaccountMap"
+      @close="selectedEvent = null"
+    />
   </div><!-- end page-root -->
 </template>

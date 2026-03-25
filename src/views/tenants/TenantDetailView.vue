@@ -2,9 +2,7 @@
 import { useRoute } from 'vue-router'
 import { computed } from 'vue'
 import { useTenant } from '@/composables/useTenants'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Badge } from '@/components/ui/badge'
-import BtpAccountsTab from '@/views/btp-accounts/BtpAccountsTab.vue'
 import UsersTab from '@/views/users/UsersTab.vue'
 import { ArrowLeft } from 'lucide-vue-next'
 import { RouterLink } from 'vue-router'
@@ -27,7 +25,7 @@ const { data: tenant, isLoading, error } = useTenant(tenantId)
               class="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft class="h-3 w-3" />
-              Tenants
+              Organization
             </RouterLink>
             <span class="text-muted-foreground text-xs">/</span>
             <h2 class="text-base font-semibold leading-none">{{ tenant.name }}</h2>
@@ -43,20 +41,7 @@ const { data: tenant, isLoading, error } = useTenant(tenantId)
 
     <div class="page-content">
       <div v-if="isLoading" class="text-sm text-muted-foreground">Loading…</div>
-      <template v-else-if="tenant">
-        <Tabs default-value="accounts">
-          <TabsList>
-            <TabsTrigger value="accounts">BTP Accounts</TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-          </TabsList>
-          <TabsContent value="accounts" class="mt-4">
-            <BtpAccountsTab :tenant-id="tenantId" />
-          </TabsContent>
-          <TabsContent value="users" class="mt-4">
-            <UsersTab :tenant-id="tenantId" />
-          </TabsContent>
-        </Tabs>
-      </template>
+      <UsersTab v-else-if="tenant" :tenant-id="tenantId" />
     </div>
   </div>
 </template>

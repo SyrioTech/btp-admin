@@ -56,7 +56,9 @@ const onSubmit = handleSubmit(async (values) => {
     <div class="w-full max-w-sm space-y-6">
       <!-- Brand header -->
       <div class="flex flex-col items-center gap-3">
-        <img :src="syrioIcon" class="h-16 w-16 rounded-full object-contain shadow-lg" alt="Syrio" />
+        <div class="h-16 w-16 rounded-full overflow-hidden shadow-lg flex items-center justify-center bg-sidebar-accent/20">
+          <img :src="syrioIcon" class="h-full w-full object-cover" alt="Syrio" />
+        </div>
         <div class="text-center">
           <h1 class="text-lg font-bold text-sidebar-foreground">BTP Inspector</h1>
           <p class="text-xs text-sidebar-muted">Syrio Administration Portal</p>
